@@ -285,6 +285,7 @@ private:
     uint32_t m_GyroStickPrecisionMask;
     bool m_GyroStickPrecisionTriggers[2];
 
+    bool m_NeedsManualCaptureOnLeave;
     bool m_MouseWasInVideoRegion;
     bool m_PendingMouseButtonsAllUpOnVideoRegionLeave;
     bool m_PointerRegionLockActive;
