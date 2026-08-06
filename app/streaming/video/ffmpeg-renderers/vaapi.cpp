@@ -647,6 +647,12 @@ int VAAPIRenderer::getDecoderColorspace()
     return COLORSPACE_REC_601;
 }
 
+int VAAPIRenderer::getDecoderColorRange()
+{
+    // vaPutSurface() assumes limited range
+    return COLOR_RANGE_LIMITED;
+}
+
 int VAAPIRenderer::getDecoderCapabilities()
 {
     int caps = 0;
