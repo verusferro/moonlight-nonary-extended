@@ -712,7 +712,6 @@ void Session::handleStreamQuickAction(const QString& action)
 
 Session::~Session()
 {
-    DualSenseAudioRenderer::instance().close();
     // NB: This may not get destroyed for a long time! Don't put any non-trivial cleanup here.
     // Use Session::exec() or DeferredSessionCleanupTask instead.
 
@@ -1562,6 +1561,12 @@ private:
         // try to interact with APIs that can only be called between
         // LiStartConnection() and LiStopConnection().
         SDL_assert(m_Session->m_VideoDecoder == nullptr);
+
+        // Failed starts bypass the SDL-loop cleanup; stop our producers before
+        // common-c destroys the control connection, on every exit path.
+        delete m_Session->m_MicCapture;
+        m_Session->m_MicCapture = nullptr;
+        DualSenseAudioRenderer::instance().close();
 
         // Finish cleanup of the connection state
         LiStopConnection();
