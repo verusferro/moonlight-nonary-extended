@@ -15,6 +15,7 @@ namespace Overlay {
 enum OverlayType {
     OverlayDebug,
     OverlayStatusUpdate,
+    OverlayNotification,
     OverlayMax
 };
 
@@ -71,6 +72,7 @@ public:
 private:
     void run();
     SDL_Surface* RenderTextOutlinedWrapped(TTF_Font* font, const char* text, SDL_Color textColor, SDL_Color outlineColor, int outlineWidth, int wrapWidth);
+    SDL_Surface* RenderNotificationCard(TTF_Font* font, const char* text);
 
     struct {
         bool enabled = false;
@@ -86,6 +88,7 @@ private:
     } m_Overlays[OverlayMax];
     IOverlayRenderer* m_Renderer;
     QByteArray m_FontData;
+    QByteArray m_NotificationFontData;
     std::mutex m_StateLock;
     std::string m_StatusMessages[static_cast<int>(StatusSource::Count)];
     std::condition_variable m_WorkReady;

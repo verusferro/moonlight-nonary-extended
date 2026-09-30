@@ -15,6 +15,19 @@
 #include <QDir>
 #include <QThread>
 #include <QUrl>
+#include <QFile>
+#include <QHash>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QKeySequence>
+#include <QUuid>
+#include <utility>
+#include <SDL.h>
+#include "streaming/session.h"
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 #include <QtDebug>
 
@@ -36,8 +49,13 @@
 #define SER_TRACEVRRFRAMES "tracevrrframes"
 #define SER_GAMEOPTS "gameopts"
 #define SER_HOSTAUDIO "hostaudio"
+#define SER_MICCAPTURE "micCapture"
+#define SER_MICDEVICE "micDevice"
+#define SER_STOPSTEAMFORDUALSENSE "stopSteamForDualSense"
 #define SER_MULTICONT "multicontroller"
 #define SER_AUDIOCFG "audiocfg"
+#define SER_CONTROLLEREMULATION "controlleremulation"
+#define SER_DUALSENSEAUDIOMODE "dualsenseaudiomode"
 #define SER_VIDEOCFG "videocfg"
 #define SER_HDR "hdr"
 #define SER_YUV444 "yuv444"
@@ -63,6 +81,74 @@
 #define SER_BACKGROUNDGAMEPAD "backgroundgamepad"
 #define SER_REVERSESCROLL "reversescroll"
 #define SER_SWAPFACEBUTTONS "swapfacebuttons"
+#define SER_GYROOVERRIDEENABLED "gyrooverrideenabled"
+#define SER_GYROXSOURCE "gyroxsource"
+#define SER_GYROYSOURCE "gyroysource"
+#define SER_GYROZSOURCE "gyrozsource"
+#define SER_GYROXINVERTED "gyroxinverted"
+#define SER_GYROYINVERTED "gyroyinverted"
+#define SER_GYROZINVERTED "gyrozinverted"
+#define SER_GYROXDISABLED "gyroxdisabled"
+#define SER_GYROYDISABLED "gyroydisabled"
+#define SER_GYROZDISABLED "gyrozdisabled"
+#define SER_CONTROLLERKBMMODE "controllerkbmmode"
+#define SER_CONTROLLERKBMSTICKSPEED "controllerkbmstickspeed"
+#define SER_CONTROLLERKBMCONTINUOUS "controllerkbmcontinuous"
+#define SER_CONTROLLERKBMTRIGGERTHRESHOLD "controllerkbmtriggerthreshold"
+#define SER_CONTROLLERKBMTRIGGERBEHAVIOR "controllerkbmtriggerbehavior"
+#define SER_CONTROLLERKBMTRIGGERREPEATRATE "controllerkbmtriggerrepeatrate"
+#define SER_CONTROLLERKBMLEFTTRIGGERTHRESHOLD "controllerkbmlefttriggerthreshold"
+#define SER_CONTROLLERKBMLEFTTRIGGERBEHAVIOR "controllerkbmlefttriggerbehavior"
+#define SER_CONTROLLERKBMLEFTTRIGGERREPEATRATE "controllerkbmlefttriggerrepeatrate"
+#define SER_CONTROLLERKBMRIGHTTRIGGERTHRESHOLD "controllerkbmrighttriggerthreshold"
+#define SER_CONTROLLERKBMRIGHTTRIGGERBEHAVIOR "controllerkbmrighttriggerbehavior"
+#define SER_CONTROLLERKBMRIGHTTRIGGERREPEATRATE "controllerkbmrighttriggerrepeatrate"
+#define SER_CONTROLLERKBMMAPPINGS "controllerkbmmappings"
+#define SER_CONTROLLERKBMPRESETS "controllerkbmpresets"
+#define SER_CONTROLLERKBMACTIVEPRESET "controllerkbmactivepreset"
+#define SER_CONTROLLERKBMSHORTCUT "controllerkbmshortcut"
+#define SER_CONTROLLERKBMGYROENABLED "controllerkbmgyroenabled"
+#define SER_CONTROLLERKBMGYROSENSITIVITY "controllerkbmgyrosensitivity"
+#define SER_CONTROLLERKBMGYROSHORTCUT "controllerkbmgyroshortcut"
+#define SER_CONTROLLERKBMGYROHOLDMODE "controllerkbmgyroholdmode"
+#define SER_CONTROLLERKBMGYROACTIVATIONBUTTONS "controllerkbmgyroactivationbuttons"
+#define SER_CONTROLLERKBMGYROPRECISIONENABLED "controllerkbmgyroprecisionenabled"
+#define SER_CONTROLLERKBMGYROPRECISIONSENSITIVITY "controllerkbmgyroprecisionsensitivity"
+#define SER_CONTROLLERKBMGYROPRECISIONBUTTONS "controllerkbmgyroprecisionbuttons"
+#define SER_DUALSENSECONTROLLERVOLUME "dualsensecontrollervolume"
+#define SER_TRIGGEROVERRIDEENABLED "triggeroverrideenabled"
+#define SER_LEFTTRIGGEROVERRIDETHRESHOLD "lefttriggeroverridethreshold"
+#define SER_RIGHTTRIGGEROVERRIDETHRESHOLD "righttriggeroverridethreshold"
+#define SER_MICMUTEKEYBOARDKEY "micmutekeyboardkey"
+#define SER_MICMUTEKEYBOARDMODIFIERS "micmutekeyboardmodifiers"
+#define SER_CONTROLLERKBMGYROXSENSITIVITY "controllerkbmgyroxsensitivity"
+#define SER_CONTROLLERKBMGYROYSENSITIVITY "controllerkbmgyroysensitivity"
+#define SER_CONTROLLERKBMGYROZSENSITIVITY "controllerkbmgyrozsensitivity"
+#define SER_CONTROLLERKBMGYROXINVERTED "controllerkbmgyroxinverted"
+#define SER_CONTROLLERKBMGYROYINVERTED "controllerkbmgyroyinverted"
+#define SER_CONTROLLERKBMGYROZINVERTED "controllerkbmgyrozinverted"
+#define SER_QUICKMENUKEYBOARDKEY "quickmenukeyboardkey"
+#define SER_QUICKMENUKEYBOARDMODIFIERS "quickmenukeyboardmodifiers"
+#define SER_GYROSTICKENABLED "gyrostickenabled"
+#define SER_GYROSTICKSENSITIVITY "gyrosticksensitivity"
+#define SER_GYROSTICKXSENSITIVITY "gyrostickxsensitivity"
+#define SER_GYROSTICKYSENSITIVITY "gyrostickysensitivity"
+#define SER_GYROSTICKZSENSITIVITY "gyrostickzsensitivity"
+#define SER_GYROSTICKXINVERTED "gyrostickxinverted"
+#define SER_GYROSTICKYINVERTED "gyrostickyinverted"
+#define SER_GYROSTICKZINVERTED "gyrostickzinverted"
+#define SER_GYROSTICKSMOOTHING "gyrosticksmoothing"
+#define SER_GYROSTICKDEADZONE "gyrostickdeadzone"
+#define SER_GYROSTICKSHORTCUT "gyrostickshortcut"
+#define SER_GYROSTICKHOLDMODE "gyrostickholdmode"
+#define SER_GYROSTICKACTIVATIONBUTTONS "gyrostickactivationbuttons"
+#define SER_GYROSTICKPRECISIONENABLED "gyrostickprecisionenabled"
+#define SER_GYROSTICKPRECISIONSENSITIVITY "gyrostickprecisionsensitivity"
+#define SER_GYROSTICKPRECISIONBUTTONS "gyrostickprecisionbuttons"
+#define SER_GYROSTICKPROFILES "gyrostickprofiles"
+#define SER_GYROSTICKACTIVEPROFILE "gyrostickactiveprofile"
+#define SER_CONTROLLERBATTERYWARNENABLED "controllerbatterywarningenabled"
+#define SER_CONTROLLERBATTERYWARNTHRESHOLD "controllerbatterywarningthreshold"
 #define SER_CAPTURESYSKEYS "capturesyskeys"
 #define SER_KEEPAWAKE "keepawake"
 #define SER_LANGUAGE "language"
@@ -166,6 +252,9 @@ void StreamingPreferences::reload()
     settings.remove("vrrdiagnosticmode"); // Retired, unpublished timing comparison selector.
     gameOptimizations = settings.value(SER_GAMEOPTS, true).toBool();
     playAudioOnHost = settings.value(SER_HOSTAUDIO, false).toBool();
+    micCapture = settings.value(SER_MICCAPTURE, false).toBool();
+    micDevice = settings.value(SER_MICDEVICE, QString()).toString();
+    stopSteamForDualSense = settings.value(SER_STOPSTEAMFORDUALSENSE, true).toBool();
     multiController = settings.value(SER_MULTICONT, true).toBool();
     enableMdns = settings.value(SER_MDNS, true).toBool();
     quitAppAfter = settings.value(SER_QUITAPPAFTER, false).toBool();
@@ -184,12 +273,78 @@ void StreamingPreferences::reload()
     backgroundGamepad = settings.value(SER_BACKGROUNDGAMEPAD, false).toBool();
     reverseScrollDirection = settings.value(SER_REVERSESCROLL, false).toBool();
     swapFaceButtons = settings.value(SER_SWAPFACEBUTTONS, false).toBool();
+    gyroOverrideEnabled = settings.value(SER_GYROOVERRIDEENABLED, false).toBool();
+    gyroXAxisSource = qBound(0, settings.value(SER_GYROXSOURCE, 0).toInt(), 2);
+    gyroYAxisSource = qBound(0, settings.value(SER_GYROYSOURCE, 1).toInt(), 2);
+    gyroZAxisSource = qBound(0, settings.value(SER_GYROZSOURCE, 2).toInt(), 2);
+    gyroXAxisInverted = settings.value(SER_GYROXINVERTED, false).toBool();
+    gyroYAxisInverted = settings.value(SER_GYROYINVERTED, false).toBool();
+    gyroZAxisInverted = settings.value(SER_GYROZINVERTED, false).toBool();
+    gyroXAxisDisabled = settings.value(SER_GYROXDISABLED, false).toBool();
+    gyroYAxisDisabled = settings.value(SER_GYROYDISABLED, false).toBool();
+    gyroZAxisDisabled = settings.value(SER_GYROZDISABLED, false).toBool();
+    controllerKbmMode = settings.value(SER_CONTROLLERKBMMODE, false).toBool();
+    controllerKbmStickSpeed = qBound(10, settings.value(SER_CONTROLLERKBMSTICKSPEED, 100).toInt(), 400);
+    controllerKbmContinuousStickMouse = settings.value(SER_CONTROLLERKBMCONTINUOUS, true).toBool();
+    controllerKbmTriggerThreshold = qBound(1, settings.value(SER_CONTROLLERKBMTRIGGERTHRESHOLD, 15).toInt(), 100);
+    controllerKbmTriggerBehavior = settings.value(SER_CONTROLLERKBMTRIGGERBEHAVIOR, QStringLiteral("hold")).toString();
+    if (controllerKbmTriggerBehavior != QStringLiteral("single") &&
+            controllerKbmTriggerBehavior != QStringLiteral("repeat")) {
+        controllerKbmTriggerBehavior = QStringLiteral("hold");
+    }
+    controllerKbmTriggerRepeatRate = qBound(1, settings.value(SER_CONTROLLERKBMTRIGGERREPEATRATE, 8).toInt(), 30);
+    controllerKbmLeftTriggerThreshold = qBound(1, settings.value(SER_CONTROLLERKBMLEFTTRIGGERTHRESHOLD, controllerKbmTriggerThreshold).toInt(), 100);
+    controllerKbmLeftTriggerBehavior = settings.value(SER_CONTROLLERKBMLEFTTRIGGERBEHAVIOR, controllerKbmTriggerBehavior).toString();
+    controllerKbmLeftTriggerRepeatRate = qBound(1, settings.value(SER_CONTROLLERKBMLEFTTRIGGERREPEATRATE, controllerKbmTriggerRepeatRate).toInt(), 30);
+    controllerKbmRightTriggerThreshold = qBound(1, settings.value(SER_CONTROLLERKBMRIGHTTRIGGERTHRESHOLD, controllerKbmTriggerThreshold).toInt(), 100);
+    controllerKbmRightTriggerBehavior = settings.value(SER_CONTROLLERKBMRIGHTTRIGGERBEHAVIOR, controllerKbmTriggerBehavior).toString();
+    controllerKbmRightTriggerRepeatRate = qBound(1, settings.value(SER_CONTROLLERKBMRIGHTTRIGGERREPEATRATE, controllerKbmTriggerRepeatRate).toInt(), 30);
+    controllerKbmShortcut = settings.value(SER_CONTROLLERKBMSHORTCUT, QStringLiteral("4,5")).toString();
+    controllerKbmGyroEnabled = settings.value(SER_CONTROLLERKBMGYROENABLED, false).toBool();
+    controllerKbmGyroSensitivity = qBound(10, settings.value(SER_CONTROLLERKBMGYROSENSITIVITY, 100).toInt(), 500);
+    controllerKbmGyroShortcut = settings.value(SER_CONTROLLERKBMGYROSHORTCUT, QStringLiteral("7,8")).toString();
+    controllerKbmGyroHoldMode = settings.value(SER_CONTROLLERKBMGYROHOLDMODE, false).toBool();
+    controllerKbmGyroActivationButtons = settings.value(SER_CONTROLLERKBMGYROACTIVATIONBUTTONS, QString()).toString();
+    controllerKbmGyroPrecisionEnabled = settings.value(SER_CONTROLLERKBMGYROPRECISIONENABLED, false).toBool();
+    controllerKbmGyroPrecisionSensitivity = qBound(10, settings.value(SER_CONTROLLERKBMGYROPRECISIONSENSITIVITY, 40).toInt(), 100);
+    controllerKbmGyroPrecisionButtons = settings.value(SER_CONTROLLERKBMGYROPRECISIONBUTTONS, QStringLiteral("100")).toString();
+    dualSenseControllerVolume=settings.value(SER_DUALSENSECONTROLLERVOLUME,100).toInt(); triggerOverrideEnabled=settings.value(SER_TRIGGEROVERRIDEENABLED,false).toBool(); leftTriggerOverrideThreshold=settings.value(SER_LEFTTRIGGEROVERRIDETHRESHOLD,50).toInt(); rightTriggerOverrideThreshold=settings.value(SER_RIGHTTRIGGEROVERRIDETHRESHOLD,50).toInt();
+    controllerKbmGyroXSensitivity = qBound(10, settings.value(SER_CONTROLLERKBMGYROXSENSITIVITY, 100).toInt(), 500);
+    controllerKbmGyroYSensitivity = qBound(10, settings.value(SER_CONTROLLERKBMGYROYSENSITIVITY, 100).toInt(), 500);
+    controllerKbmGyroZSensitivity = qBound(10, settings.value(SER_CONTROLLERKBMGYROZSENSITIVITY, 100).toInt(), 500);
+    controllerKbmGyroXInverted = settings.value(SER_CONTROLLERKBMGYROXINVERTED, false).toBool();
+    controllerKbmGyroYInverted = settings.value(SER_CONTROLLERKBMGYROYINVERTED, false).toBool();
+    controllerKbmGyroZInverted = settings.value(SER_CONTROLLERKBMGYROZINVERTED, false).toBool();
+    quickMenuKeyboardKey = settings.value(SER_QUICKMENUKEYBOARDKEY, 0x41).toInt();
+    quickMenuKeyboardModifiers = settings.value(SER_QUICKMENUKEYBOARDMODIFIERS, 0x07).toInt();
+    microphoneMuteKeyboardKey=settings.value(SER_MICMUTEKEYBOARDKEY,0x4D).toInt(); microphoneMuteKeyboardModifiers=settings.value(SER_MICMUTEKEYBOARDMODIFIERS,0x05).toInt();
+    gyroStickEnabled=settings.value(SER_GYROSTICKENABLED,false).toBool();
+    gyroStickSensitivity=qBound(10,settings.value(SER_GYROSTICKSENSITIVITY,100).toInt(),500);
+    gyroStickXSensitivity=qBound(0,settings.value(SER_GYROSTICKXSENSITIVITY,100).toInt(),500);
+    gyroStickYSensitivity=qBound(0,settings.value(SER_GYROSTICKYSENSITIVITY,100).toInt(),500);
+    gyroStickZSensitivity=qBound(0,settings.value(SER_GYROSTICKZSENSITIVITY,100).toInt(),500);
+    gyroStickXInverted=settings.value(SER_GYROSTICKXINVERTED,false).toBool(); gyroStickYInverted=settings.value(SER_GYROSTICKYINVERTED,false).toBool(); gyroStickZInverted=settings.value(SER_GYROSTICKZINVERTED,false).toBool();
+    gyroStickSmoothing=settings.value(SER_GYROSTICKSMOOTHING,true).toBool(); gyroStickDeadzone=qBound(0,settings.value(SER_GYROSTICKDEADZONE,8).toInt(),40); gyroStickShortcut=settings.value(SER_GYROSTICKSHORTCUT,QStringLiteral("4,3")).toString();
+    gyroStickHoldMode=settings.value(SER_GYROSTICKHOLDMODE,false).toBool();gyroStickActivationButtons=settings.value(SER_GYROSTICKACTIVATIONBUTTONS,QStringLiteral("100")).toString();
+    gyroStickPrecisionEnabled=settings.value(SER_GYROSTICKPRECISIONENABLED,false).toBool();gyroStickPrecisionSensitivity=qBound(10,settings.value(SER_GYROSTICKPRECISIONSENSITIVITY,40).toInt(),500);gyroStickPrecisionButtons=settings.value(SER_GYROSTICKPRECISIONBUTTONS,QStringLiteral("101")).toString();
+    gyroStickProfiles=QJsonDocument::fromJson(settings.value(SER_GYROSTICKPROFILES,QByteArray("[]")).toByteArray()).array().toVariantList();refreshGyroStickProfileNames();gyroStickActiveProfileIndex=qBound(-1,settings.value(SER_GYROSTICKACTIVEPROFILE,-1).toInt(),gyroStickProfiles.size()-1);
+    controllerBatteryWarningEnabled=settings.value(SER_CONTROLLERBATTERYWARNENABLED,true).toBool();controllerBatteryWarningThreshold=qBound(5,settings.value(SER_CONTROLLERBATTERYWARNTHRESHOLD,10).toInt(),50);controllerStatus.clear();anyControllerHeadsetConnected=false;
+    controllerKbmMappings = QJsonDocument::fromJson(
+                settings.value(SER_CONTROLLERKBMMAPPINGS, QByteArray("{}")).toByteArray()).object().toVariantMap();
+    controllerKbmPresets = QJsonDocument::fromJson(
+                settings.value(SER_CONTROLLERKBMPRESETS, QByteArray("[]")).toByteArray()).array().toVariantList();
+    refreshControllerKbmPresetNames();
+    controllerKbmActivePresetIndex = qBound(-1, settings.value(SER_CONTROLLERKBMACTIVEPRESET, -1).toInt(), controllerKbmPresets.size() - 1);
     keepAwake = settings.value(SER_KEEPAWAKE, true).toBool();
     enableHdr = settings.value(SER_HDR, false).toBool();
     captureSysKeysMode = static_cast<CaptureSysKeysMode>(settings.value(SER_CAPTURESYSKEYS,
                                                          static_cast<int>(CaptureSysKeysMode::CSK_OFF)).toInt());
     audioConfig = static_cast<AudioConfig>(settings.value(SER_AUDIOCFG,
                                                   static_cast<int>(AudioConfig::AC_STEREO)).toInt());
+    controllerEmulationMode = static_cast<ControllerEmulationMode>(settings.value(SER_CONTROLLEREMULATION,
+                                                  static_cast<int>(ControllerEmulationMode::CEM_AUTO)).toInt());
+    dualSenseAudioMode = static_cast<DualSenseAudioMode>(settings.value(SER_DUALSENSEAUDIOMODE,
+                                                  static_cast<int>(DualSenseAudioMode::DSAM_AUTO)).toInt());
     videoCodecConfig = static_cast<VideoCodecConfig>(settings.value(SER_VIDEOCFG,
                                                   static_cast<int>(VideoCodecConfig::VCC_AUTO)).toInt());
     videoDecoderSelection = static_cast<VideoDecoderSelection>(settings.value(SER_VIDEODEC,
@@ -375,6 +530,9 @@ void StreamingPreferences::save()
     settings.remove("v2queue"); // The interval queue is now the production policy.
     settings.setValue(SER_GAMEOPTS, gameOptimizations);
     settings.setValue(SER_HOSTAUDIO, playAudioOnHost);
+    settings.setValue(SER_MICCAPTURE, micCapture);
+    settings.setValue(SER_MICDEVICE, micDevice);
+    settings.setValue(SER_STOPSTEAMFORDUALSENSE, stopSteamForDualSense);
     settings.setValue(SER_MULTICONT, multiController);
     settings.setValue(SER_MDNS, enableMdns);
     settings.setValue(SER_QUITAPPAFTER, quitAppAfter);
@@ -389,6 +547,8 @@ void StreamingPreferences::save()
     settings.setValue(SER_DETECTNETBLOCKING, detectNetworkBlocking);
     settings.setValue(SER_SHOWPERFOVERLAY, showPerformanceOverlay);
     settings.setValue(SER_AUDIOCFG, static_cast<int>(audioConfig));
+    settings.setValue(SER_CONTROLLEREMULATION, static_cast<int>(controllerEmulationMode));
+    settings.setValue(SER_DUALSENSEAUDIOMODE, static_cast<int>(dualSenseAudioMode));
     settings.setValue(SER_HDR, enableHdr);
     settings.setValue(SER_YUV444, enableYUV444);
     settings.setValue(SER_VIDEOCFG, static_cast<int>(videoCodecConfig));
@@ -403,6 +563,51 @@ void StreamingPreferences::save()
     settings.setValue(SER_BACKGROUNDGAMEPAD, backgroundGamepad);
     settings.setValue(SER_REVERSESCROLL, reverseScrollDirection);
     settings.setValue(SER_SWAPFACEBUTTONS, swapFaceButtons);
+    settings.setValue(SER_GYROOVERRIDEENABLED, gyroOverrideEnabled);
+    settings.setValue(SER_GYROXSOURCE, gyroXAxisSource);
+    settings.setValue(SER_GYROYSOURCE, gyroYAxisSource);
+    settings.setValue(SER_GYROZSOURCE, gyroZAxisSource);
+    settings.setValue(SER_GYROXINVERTED, gyroXAxisInverted);
+    settings.setValue(SER_GYROYINVERTED, gyroYAxisInverted);
+    settings.setValue(SER_GYROZINVERTED, gyroZAxisInverted);
+    settings.setValue(SER_GYROXDISABLED, gyroXAxisDisabled);
+    settings.setValue(SER_GYROYDISABLED, gyroYAxisDisabled);
+    settings.setValue(SER_GYROZDISABLED, gyroZAxisDisabled);
+    settings.setValue(SER_CONTROLLERKBMMODE, controllerKbmMode);
+    settings.setValue(SER_CONTROLLERKBMSTICKSPEED, controllerKbmStickSpeed);
+    settings.setValue(SER_CONTROLLERKBMCONTINUOUS, controllerKbmContinuousStickMouse);
+    settings.setValue(SER_CONTROLLERKBMTRIGGERTHRESHOLD, controllerKbmTriggerThreshold);
+    settings.setValue(SER_CONTROLLERKBMTRIGGERBEHAVIOR, controllerKbmTriggerBehavior);
+    settings.setValue(SER_CONTROLLERKBMTRIGGERREPEATRATE, controllerKbmTriggerRepeatRate);
+    settings.setValue(SER_CONTROLLERKBMLEFTTRIGGERTHRESHOLD, controllerKbmLeftTriggerThreshold);
+    settings.setValue(SER_CONTROLLERKBMLEFTTRIGGERBEHAVIOR, controllerKbmLeftTriggerBehavior);
+    settings.setValue(SER_CONTROLLERKBMLEFTTRIGGERREPEATRATE, controllerKbmLeftTriggerRepeatRate);
+    settings.setValue(SER_CONTROLLERKBMRIGHTTRIGGERTHRESHOLD, controllerKbmRightTriggerThreshold);
+    settings.setValue(SER_CONTROLLERKBMRIGHTTRIGGERBEHAVIOR, controllerKbmRightTriggerBehavior);
+    settings.setValue(SER_CONTROLLERKBMRIGHTTRIGGERREPEATRATE, controllerKbmRightTriggerRepeatRate);
+    settings.setValue(SER_CONTROLLERKBMSHORTCUT, controllerKbmShortcut);
+    settings.setValue(SER_CONTROLLERKBMGYROENABLED, controllerKbmGyroEnabled);
+    settings.setValue(SER_CONTROLLERKBMGYROSENSITIVITY, controllerKbmGyroSensitivity);
+    settings.setValue(SER_CONTROLLERKBMGYROSHORTCUT, controllerKbmGyroShortcut);
+    settings.setValue(SER_CONTROLLERKBMGYROHOLDMODE, controllerKbmGyroHoldMode);
+    settings.setValue(SER_CONTROLLERKBMGYROACTIVATIONBUTTONS, controllerKbmGyroActivationButtons);
+    settings.setValue(SER_CONTROLLERKBMGYROPRECISIONENABLED, controllerKbmGyroPrecisionEnabled);
+    settings.setValue(SER_CONTROLLERKBMGYROPRECISIONSENSITIVITY, controllerKbmGyroPrecisionSensitivity);
+    settings.setValue(SER_CONTROLLERKBMGYROPRECISIONBUTTONS, controllerKbmGyroPrecisionButtons);
+    settings.setValue(SER_DUALSENSECONTROLLERVOLUME,dualSenseControllerVolume);settings.setValue(SER_TRIGGEROVERRIDEENABLED,triggerOverrideEnabled);settings.setValue(SER_LEFTTRIGGEROVERRIDETHRESHOLD,leftTriggerOverrideThreshold);settings.setValue(SER_RIGHTTRIGGEROVERRIDETHRESHOLD,rightTriggerOverrideThreshold);
+    settings.setValue(SER_CONTROLLERKBMGYROXSENSITIVITY, controllerKbmGyroXSensitivity); settings.setValue(SER_CONTROLLERKBMGYROYSENSITIVITY, controllerKbmGyroYSensitivity); settings.setValue(SER_CONTROLLERKBMGYROZSENSITIVITY, controllerKbmGyroZSensitivity);
+    settings.setValue(SER_CONTROLLERKBMGYROXINVERTED, controllerKbmGyroXInverted); settings.setValue(SER_CONTROLLERKBMGYROYINVERTED, controllerKbmGyroYInverted); settings.setValue(SER_CONTROLLERKBMGYROZINVERTED, controllerKbmGyroZInverted);
+    settings.setValue(SER_QUICKMENUKEYBOARDKEY, quickMenuKeyboardKey);
+    settings.setValue(SER_QUICKMENUKEYBOARDMODIFIERS, quickMenuKeyboardModifiers);
+    settings.setValue(SER_MICMUTEKEYBOARDKEY,microphoneMuteKeyboardKey);settings.setValue(SER_MICMUTEKEYBOARDMODIFIERS,microphoneMuteKeyboardModifiers);
+    settings.setValue(SER_GYROSTICKENABLED,gyroStickEnabled); settings.setValue(SER_GYROSTICKSENSITIVITY,gyroStickSensitivity); settings.setValue(SER_GYROSTICKXSENSITIVITY,gyroStickXSensitivity); settings.setValue(SER_GYROSTICKYSENSITIVITY,gyroStickYSensitivity); settings.setValue(SER_GYROSTICKZSENSITIVITY,gyroStickZSensitivity);
+    settings.setValue(SER_GYROSTICKXINVERTED,gyroStickXInverted); settings.setValue(SER_GYROSTICKYINVERTED,gyroStickYInverted); settings.setValue(SER_GYROSTICKZINVERTED,gyroStickZInverted); settings.setValue(SER_GYROSTICKSMOOTHING,gyroStickSmoothing); settings.setValue(SER_GYROSTICKDEADZONE,gyroStickDeadzone); settings.setValue(SER_GYROSTICKSHORTCUT,gyroStickShortcut);
+    settings.setValue(SER_GYROSTICKHOLDMODE,gyroStickHoldMode);settings.setValue(SER_GYROSTICKACTIVATIONBUTTONS,gyroStickActivationButtons);settings.setValue(SER_GYROSTICKPRECISIONENABLED,gyroStickPrecisionEnabled);settings.setValue(SER_GYROSTICKPRECISIONSENSITIVITY,gyroStickPrecisionSensitivity);settings.setValue(SER_GYROSTICKPRECISIONBUTTONS,gyroStickPrecisionButtons);settings.setValue(SER_GYROSTICKPROFILES,QJsonDocument::fromVariant(gyroStickProfiles).toJson(QJsonDocument::Compact));settings.setValue(SER_GYROSTICKACTIVEPROFILE,gyroStickActiveProfileIndex);settings.setValue(SER_CONTROLLERBATTERYWARNENABLED,controllerBatteryWarningEnabled);settings.setValue(SER_CONTROLLERBATTERYWARNTHRESHOLD,controllerBatteryWarningThreshold);
+    settings.setValue(SER_CONTROLLERKBMMAPPINGS,
+                      QJsonDocument::fromVariant(controllerKbmMappings).toJson(QJsonDocument::Compact));
+    settings.setValue(SER_CONTROLLERKBMPRESETS,
+                      QJsonDocument::fromVariant(controllerKbmPresets).toJson(QJsonDocument::Compact));
+    settings.setValue(SER_CONTROLLERKBMACTIVEPRESET, controllerKbmActivePresetIndex);
     settings.setValue(SER_CAPTURESYSKEYS, captureSysKeysMode);
     settings.setValue(SER_KEEPAWAKE, keepAwake);
 }
@@ -486,6 +691,494 @@ QVariantList StreamingPreferences::getFpsChoices(const QVariantList& refreshRate
     }
 
     return result;
+}
+
+QString StreamingPreferences::controllerKbmAction(const QString& source) const
+{
+    return controllerKbmMappings.value(source).toString();
+}
+
+void StreamingPreferences::refreshControllerStatus()
+{
+    QSettings settings;
+    QVariantList updated;
+    bool headsetConnected = false;
+    settings.beginGroup(QStringLiteral("livecontrollerstatus"));
+    for (const QString& id : settings.childGroups()) {
+        settings.beginGroup(id);
+        QVariantMap item;
+        for (const QString& key : settings.childKeys()) item.insert(key, settings.value(key));
+        item.insert(QStringLiteral("id"), id);
+        headsetConnected |= item.value(QStringLiteral("headsetConnected")).toBool();
+        updated.append(item);
+        settings.endGroup();
+    }
+    settings.endGroup();
+    if (updated != controllerStatus || headsetConnected != anyControllerHeadsetConnected) {
+        controllerStatus = updated;
+        anyControllerHeadsetConnected = headsetConnected;
+        emit controllerStatusChanged();
+    }
+}
+
+QVariantMap StreamingPreferences::currentGyroStickProfile(const QString& name) const
+{
+    QVariantMap profile;
+    profile.insert(QStringLiteral("name"), name);
+    profile.insert(QStringLiteral("enabled"), gyroStickEnabled);
+    profile.insert(QStringLiteral("sensitivity"), gyroStickSensitivity);
+    profile.insert(QStringLiteral("xSensitivity"), gyroStickXSensitivity);
+    profile.insert(QStringLiteral("ySensitivity"), gyroStickYSensitivity);
+    profile.insert(QStringLiteral("zSensitivity"), gyroStickZSensitivity);
+    profile.insert(QStringLiteral("xInverted"), gyroStickXInverted);
+    profile.insert(QStringLiteral("yInverted"), gyroStickYInverted);
+    profile.insert(QStringLiteral("zInverted"), gyroStickZInverted);
+    profile.insert(QStringLiteral("smoothing"), gyroStickSmoothing);
+    profile.insert(QStringLiteral("deadzone"), gyroStickDeadzone);
+    profile.insert(QStringLiteral("shortcut"), gyroStickShortcut);
+    profile.insert(QStringLiteral("holdMode"), gyroStickHoldMode);
+    profile.insert(QStringLiteral("activationButtons"), gyroStickActivationButtons);
+    profile.insert(QStringLiteral("precisionEnabled"), gyroStickPrecisionEnabled);
+    profile.insert(QStringLiteral("precisionSensitivity"), gyroStickPrecisionSensitivity);
+    profile.insert(QStringLiteral("precisionButtons"), gyroStickPrecisionButtons);
+    return profile;
+}
+
+void StreamingPreferences::refreshGyroStickProfileNames()
+{
+    gyroStickProfileNames.clear();
+    for (const QVariant& entry : std::as_const(gyroStickProfiles)) gyroStickProfileNames.append(entry.toMap().value(QStringLiteral("name")).toString());
+}
+
+bool StreamingPreferences::saveGyroStickProfile(const QString& requestedName)
+{
+    const QString name = requestedName.trimmed();
+    if (name.isEmpty()) return false;
+    gyroStickProfiles.append(currentGyroStickProfile(name));
+    gyroStickActiveProfileIndex = gyroStickProfiles.size() - 1;
+    refreshGyroStickProfileNames(); save(); emit gyroStickProfilesChanged(); return true;
+}
+
+bool StreamingPreferences::updateGyroStickProfile(int index)
+{
+    if (index < 0 || index >= gyroStickProfiles.size()) return false;
+    gyroStickProfiles[index] = currentGyroStickProfile(gyroStickProfiles[index].toMap().value(QStringLiteral("name")).toString());
+    gyroStickActiveProfileIndex = index; save(); emit gyroStickProfilesChanged(); return true;
+}
+
+bool StreamingPreferences::loadGyroStickProfile(int index)
+{
+    if (index < 0 || index >= gyroStickProfiles.size()) return false;
+    const QVariantMap p = gyroStickProfiles[index].toMap();
+    gyroStickEnabled=p.value(QStringLiteral("enabled"),gyroStickEnabled).toBool();gyroStickSensitivity=p.value(QStringLiteral("sensitivity"),gyroStickSensitivity).toInt();
+    gyroStickXSensitivity=p.value(QStringLiteral("xSensitivity"),gyroStickXSensitivity).toInt();gyroStickYSensitivity=p.value(QStringLiteral("ySensitivity"),gyroStickYSensitivity).toInt();gyroStickZSensitivity=p.value(QStringLiteral("zSensitivity"),gyroStickZSensitivity).toInt();
+    gyroStickXInverted=p.value(QStringLiteral("xInverted"),gyroStickXInverted).toBool();gyroStickYInverted=p.value(QStringLiteral("yInverted"),gyroStickYInverted).toBool();gyroStickZInverted=p.value(QStringLiteral("zInverted"),gyroStickZInverted).toBool();
+    gyroStickSmoothing=p.value(QStringLiteral("smoothing"),gyroStickSmoothing).toBool();gyroStickDeadzone=p.value(QStringLiteral("deadzone"),gyroStickDeadzone).toInt();gyroStickShortcut=p.value(QStringLiteral("shortcut"),gyroStickShortcut).toString();
+    gyroStickHoldMode=p.value(QStringLiteral("holdMode"),gyroStickHoldMode).toBool();gyroStickActivationButtons=p.value(QStringLiteral("activationButtons"),gyroStickActivationButtons).toString();gyroStickPrecisionEnabled=p.value(QStringLiteral("precisionEnabled"),gyroStickPrecisionEnabled).toBool();gyroStickPrecisionSensitivity=p.value(QStringLiteral("precisionSensitivity"),gyroStickPrecisionSensitivity).toInt();gyroStickPrecisionButtons=p.value(QStringLiteral("precisionButtons"),gyroStickPrecisionButtons).toString();
+    gyroStickActiveProfileIndex=index;save();emit controllerKbmSettingsChanged();emit gyroStickProfilesChanged();return true;
+}
+
+bool StreamingPreferences::deleteGyroStickProfile(int index)
+{
+    if(index<0||index>=gyroStickProfiles.size())return false;gyroStickProfiles.removeAt(index);gyroStickActiveProfileIndex=gyroStickProfiles.isEmpty()?-1:qMin(index,gyroStickProfiles.size()-1);refreshGyroStickProfileNames();save();emit gyroStickProfilesChanged();return true;
+}
+
+bool StreamingPreferences::exportGyroStickProfile(int index,const QUrl& destination) const
+{
+    if(index<0||index>=gyroStickProfiles.size()||!destination.isLocalFile())return false;QFile file(destination.toLocalFile());return file.open(QIODevice::WriteOnly|QIODevice::Truncate)&&file.write(QJsonDocument::fromVariant(gyroStickProfiles[index]).toJson(QJsonDocument::Indented))>=0;
+}
+
+bool StreamingPreferences::importGyroStickProfile(const QUrl& source)
+{
+    if(!source.isLocalFile())return false;QFile file(source.toLocalFile());if(!file.open(QIODevice::ReadOnly))return false;const QVariantMap p=QJsonDocument::fromJson(file.readAll()).object().toVariantMap();if(p.value(QStringLiteral("name")).toString().isEmpty())return false;gyroStickProfiles.append(p);gyroStickActiveProfileIndex=gyroStickProfiles.size()-1;refreshGyroStickProfileNames();save();emit gyroStickProfilesChanged();return loadGyroStickProfile(gyroStickActiveProfileIndex);
+}
+
+QString StreamingPreferences::quickMenuKeyboardShortcutDescription() const
+{
+    QStringList parts;
+    if (quickMenuKeyboardModifiers & 0x01) parts << QStringLiteral("Ctrl");
+    if (quickMenuKeyboardModifiers & 0x02) parts << QStringLiteral("Alt");
+    if (quickMenuKeyboardModifiers & 0x04) parts << QStringLiteral("Shift");
+    if (quickMenuKeyboardModifiers & 0x08) parts << QStringLiteral("Win");
+    parts << QKeySequence(quickMenuKeyboardKey).toString(QKeySequence::NativeText);
+    return parts.join(QStringLiteral(" + "));
+}
+
+QString StreamingPreferences::microphoneMuteKeyboardShortcutDescription() const
+{
+    QStringList parts;
+    if(microphoneMuteKeyboardModifiers&1)parts<<"Ctrl";if(microphoneMuteKeyboardModifiers&2)parts<<"Alt";if(microphoneMuteKeyboardModifiers&4)parts<<"Shift";if(microphoneMuteKeyboardModifiers&8)parts<<"Win";
+    parts<<QKeySequence(microphoneMuteKeyboardKey).toString(QKeySequence::NativeText);return parts.join(" + ");
+}
+
+QString StreamingPreferences::quickMenuControllerShortcutDescription() const
+{
+    static const QHash<int, QString> names = {
+        {0, QStringLiteral("A / Cross")}, {1, QStringLiteral("B / Circle")},
+        {2, QStringLiteral("X / Square")}, {3, QStringLiteral("Y / Triangle")},
+        {4, QStringLiteral("Share / Create")}, {5, QStringLiteral("Home / PS")},
+        {6, QStringLiteral("Start / Options")}, {9, QStringLiteral("LB")},
+        {10, QStringLiteral("RB")}, {15, QStringLiteral("Mute")},
+        {16, QStringLiteral("Paddle 1")}, {17, QStringLiteral("Paddle 2")},
+        {18, QStringLiteral("Paddle 3")}, {19, QStringLiteral("Paddle 4")},
+        {20, QStringLiteral("Touchpad")}
+    };
+    QStringList parts;
+    for (const QString& value : controllerKbmShortcut.split(',', Qt::SkipEmptyParts)) {
+        bool ok = false;
+        const int index = value.toInt(&ok);
+        if (ok) parts << names.value(index, QString::number(index));
+    }
+    return parts.join(QStringLiteral(" + "));
+}
+
+void StreamingPreferences::setControllerKbmAction(const QString& source, const QString& action)
+{
+    if (source.isEmpty() || controllerKbmMappings.value(source).toString() == action) {
+        return;
+    }
+    if (action.isEmpty()) {
+        controllerKbmMappings.remove(source);
+    }
+    else {
+        controllerKbmMappings.insert(source, action);
+    }
+    persistControllerKbmData();
+    emit controllerKbmMappingsChanged();
+}
+
+
+QString StreamingPreferences::controllerKbmActionDescription(const QString& action) const
+{
+    if (action.isEmpty()) return tr("Unassigned");
+    if (action.startsWith(QStringLiteral("key:"))) {
+        bool ok = false;
+        const int key = action.mid(4).toInt(&ok);
+        if (ok) {
+            QString name;
+#ifdef Q_OS_WIN
+            const UINT scanCode = MapVirtualKeyW(static_cast<UINT>(key), MAPVK_VK_TO_VSC);
+            wchar_t buffer[128] = {};
+            LONG keyNameParam = static_cast<LONG>(scanCode << 16);
+            if (key == VK_LEFT || key == VK_UP || key == VK_RIGHT || key == VK_DOWN ||
+                    key == VK_PRIOR || key == VK_NEXT || key == VK_END || key == VK_HOME ||
+                    key == VK_INSERT || key == VK_DELETE || key == VK_DIVIDE || key == VK_NUMLOCK) {
+                keyNameParam |= (1 << 24);
+            }
+            if (GetKeyNameTextW(keyNameParam, buffer, static_cast<int>(std::size(buffer))) > 0) {
+                name = QString::fromWCharArray(buffer);
+            }
+#else
+            name = QKeySequence(key).toString(QKeySequence::NativeText);
+#endif
+            return tr("Keyboard: %1").arg(name.isEmpty() ? QString::number(key) : name);
+        }
+    }
+    if (action.startsWith(QStringLiteral("directed_flick:"))) {
+        const QStringList parts = action.split(':');
+        if (parts.size() == 3) {
+            return tr("Directed flick: %1, %2 px").arg(parts[1], parts[2]);
+        }
+    }
+    static const QHash<QString, QString> labels = {
+        { QStringLiteral("mouse_left"), tr("Left mouse click") },
+        { QStringLiteral("mouse_right"), tr("Right mouse click") },
+        { QStringLiteral("mouse_middle"), tr("Middle mouse click") },
+        { QStringLiteral("mouse_back"), tr("Mouse back button") },
+        { QStringLiteral("mouse_forward"), tr("Mouse forward button") },
+        { QStringLiteral("wheel_up"), tr("Mouse wheel up") },
+        { QStringLiteral("wheel_down"), tr("Mouse wheel down") },
+        { QStringLiteral("mouse_move"), tr("Mouse movement") },
+        { QStringLiteral("scroll"), tr("Two-axis scrolling") },
+        { QStringLiteral("basic_wasd"), tr("Basic movement: WASD") },
+        { QStringLiteral("basic_arrows"), tr("Basic movement: arrow keys") },
+    };
+    return labels.value(action, action);
+}
+
+void StreamingPreferences::resetControllerKbmMappings()
+{
+    if (controllerKbmMappings.isEmpty()) return;
+    controllerKbmMappings.clear();
+    persistControllerKbmData();
+    emit controllerKbmMappingsChanged();
+}
+
+void StreamingPreferences::refreshControllerKbmPresetNames()
+{
+    controllerKbmPresetNames.clear();
+    for (const QVariant& value : std::as_const(controllerKbmPresets)) {
+        controllerKbmPresetNames.append(value.toMap().value(QStringLiteral("name")).toString());
+    }
+}
+
+void StreamingPreferences::persistControllerKbmData()
+{
+    QSettings settings;
+    settings.setValue(SER_CONTROLLERKBMMODE, controllerKbmMode);
+    settings.setValue(SER_CONTROLLERKBMSTICKSPEED, controllerKbmStickSpeed);
+    settings.setValue(SER_CONTROLLERKBMCONTINUOUS, controllerKbmContinuousStickMouse);
+    settings.setValue(SER_CONTROLLERKBMLEFTTRIGGERTHRESHOLD, controllerKbmLeftTriggerThreshold);
+    settings.setValue(SER_CONTROLLERKBMLEFTTRIGGERBEHAVIOR, controllerKbmLeftTriggerBehavior);
+    settings.setValue(SER_CONTROLLERKBMLEFTTRIGGERREPEATRATE, controllerKbmLeftTriggerRepeatRate);
+    settings.setValue(SER_CONTROLLERKBMRIGHTTRIGGERTHRESHOLD, controllerKbmRightTriggerThreshold);
+    settings.setValue(SER_CONTROLLERKBMRIGHTTRIGGERBEHAVIOR, controllerKbmRightTriggerBehavior);
+    settings.setValue(SER_CONTROLLERKBMRIGHTTRIGGERREPEATRATE, controllerKbmRightTriggerRepeatRate);
+    settings.setValue(SER_CONTROLLERKBMGYROENABLED, controllerKbmGyroEnabled);
+    settings.setValue(SER_CONTROLLERKBMGYROSENSITIVITY, controllerKbmGyroSensitivity);
+    settings.setValue(SER_CONTROLLERKBMGYROSHORTCUT, controllerKbmGyroShortcut);
+    settings.setValue(SER_CONTROLLERKBMGYROHOLDMODE, controllerKbmGyroHoldMode);
+    settings.setValue(SER_CONTROLLERKBMGYROACTIVATIONBUTTONS, controllerKbmGyroActivationButtons);
+    settings.setValue(SER_CONTROLLERKBMGYROPRECISIONENABLED, controllerKbmGyroPrecisionEnabled);
+    settings.setValue(SER_CONTROLLERKBMGYROPRECISIONSENSITIVITY, controllerKbmGyroPrecisionSensitivity);
+    settings.setValue(SER_CONTROLLERKBMGYROPRECISIONBUTTONS, controllerKbmGyroPrecisionButtons);
+    settings.setValue(SER_CONTROLLERKBMGYROXSENSITIVITY, controllerKbmGyroXSensitivity); settings.setValue(SER_CONTROLLERKBMGYROYSENSITIVITY, controllerKbmGyroYSensitivity); settings.setValue(SER_CONTROLLERKBMGYROZSENSITIVITY, controllerKbmGyroZSensitivity);
+    settings.setValue(SER_CONTROLLERKBMGYROXINVERTED, controllerKbmGyroXInverted); settings.setValue(SER_CONTROLLERKBMGYROYINVERTED, controllerKbmGyroYInverted); settings.setValue(SER_CONTROLLERKBMGYROZINVERTED, controllerKbmGyroZInverted);
+    settings.setValue(SER_CONTROLLERKBMMAPPINGS,
+                      QJsonDocument::fromVariant(controllerKbmMappings).toJson(QJsonDocument::Compact));
+    settings.setValue(SER_CONTROLLERKBMPRESETS,
+                      QJsonDocument::fromVariant(controllerKbmPresets).toJson(QJsonDocument::Compact));
+    settings.setValue(SER_CONTROLLERKBMACTIVEPRESET, controllerKbmActivePresetIndex);
+}
+
+void StreamingPreferences::commitControllerKbmSettings()
+{
+    persistControllerKbmData();
+}
+
+void StreamingPreferences::assignControllerKbmKeyboardKey(const QString& source, int qtKey,
+                                                           int nativeVirtualKey, int nativeScanCode)
+{
+    int virtualKey = nativeVirtualKey;
+#ifdef Q_OS_WIN
+    if ((virtualKey <= 0 || virtualKey > 0xFF) && nativeScanCode > 0) {
+        virtualKey = static_cast<int>(MapVirtualKeyW(static_cast<UINT>(nativeScanCode),
+                                                     MAPVK_VSC_TO_VK_EX));
+    }
+    if (virtualKey <= 0 || virtualKey > 0xFF) {
+        switch (qtKey) {
+        case Qt::Key_Shift: virtualKey = VK_SHIFT; break;
+        case Qt::Key_Control: virtualKey = VK_CONTROL; break;
+        case Qt::Key_Alt: virtualKey = VK_MENU; break;
+        case Qt::Key_Meta: virtualKey = VK_LWIN; break;
+        case Qt::Key_Backspace: virtualKey = VK_BACK; break;
+        case Qt::Key_Delete: virtualKey = VK_DELETE; break;
+        case Qt::Key_Insert: virtualKey = VK_INSERT; break;
+        case Qt::Key_Tab: virtualKey = VK_TAB; break;
+        case Qt::Key_Return: case Qt::Key_Enter: virtualKey = VK_RETURN; break;
+        case Qt::Key_Escape: virtualKey = VK_ESCAPE; break;
+        case Qt::Key_Home: virtualKey = VK_HOME; break;
+        case Qt::Key_End: virtualKey = VK_END; break;
+        case Qt::Key_PageUp: virtualKey = VK_PRIOR; break;
+        case Qt::Key_PageDown: virtualKey = VK_NEXT; break;
+        case Qt::Key_Left: virtualKey = VK_LEFT; break;
+        case Qt::Key_Right: virtualKey = VK_RIGHT; break;
+        case Qt::Key_Up: virtualKey = VK_UP; break;
+        case Qt::Key_Down: virtualKey = VK_DOWN; break;
+        default:
+            if (qtKey >= Qt::Key_F1 && qtKey <= Qt::Key_F24)
+                virtualKey = VK_F1 + (qtKey - Qt::Key_F1);
+            else if (qtKey >= 0x20 && qtKey <= 0x7E)
+                virtualKey = qtKey;
+            break;
+        }
+    }
+#else
+    if (virtualKey <= 0) virtualKey = qtKey;
+#endif
+    if (virtualKey > 0)
+        setControllerKbmAction(source, QStringLiteral("key:%1").arg(virtualKey));
+}
+
+static QVariantMap currentControllerKbmPresetData(const StreamingPreferences* prefs)
+{
+    QVariantMap preset;
+    preset.insert(QStringLiteral("mappings"), prefs->controllerKbmMappings);
+    preset.insert(QStringLiteral("stickSpeed"), prefs->controllerKbmStickSpeed);
+    preset.insert(QStringLiteral("continuousStickMouse"), prefs->controllerKbmContinuousStickMouse);
+    preset.insert(QStringLiteral("leftTriggerThreshold"), prefs->controllerKbmLeftTriggerThreshold);
+    preset.insert(QStringLiteral("leftTriggerBehavior"), prefs->controllerKbmLeftTriggerBehavior);
+    preset.insert(QStringLiteral("leftTriggerRepeatRate"), prefs->controllerKbmLeftTriggerRepeatRate);
+    preset.insert(QStringLiteral("rightTriggerThreshold"), prefs->controllerKbmRightTriggerThreshold);
+    preset.insert(QStringLiteral("rightTriggerBehavior"), prefs->controllerKbmRightTriggerBehavior);
+    preset.insert(QStringLiteral("rightTriggerRepeatRate"), prefs->controllerKbmRightTriggerRepeatRate);
+    preset.insert(QStringLiteral("gyroEnabled"), prefs->controllerKbmGyroEnabled);
+    preset.insert(QStringLiteral("gyroSensitivity"), prefs->controllerKbmGyroSensitivity);
+    preset.insert(QStringLiteral("gyroShortcut"), prefs->controllerKbmGyroShortcut);
+    preset.insert(QStringLiteral("gyroHoldMode"), prefs->controllerKbmGyroHoldMode);
+    preset.insert(QStringLiteral("gyroActivationButtons"), prefs->controllerKbmGyroActivationButtons);
+    preset.insert(QStringLiteral("gyroPrecisionEnabled"), prefs->controllerKbmGyroPrecisionEnabled);
+    preset.insert(QStringLiteral("gyroPrecisionSensitivity"), prefs->controllerKbmGyroPrecisionSensitivity);
+    preset.insert(QStringLiteral("gyroPrecisionButtons"), prefs->controllerKbmGyroPrecisionButtons);
+    preset.insert(QStringLiteral("gyroXSensitivity"), prefs->controllerKbmGyroXSensitivity); preset.insert(QStringLiteral("gyroYSensitivity"), prefs->controllerKbmGyroYSensitivity); preset.insert(QStringLiteral("gyroZSensitivity"), prefs->controllerKbmGyroZSensitivity);
+    preset.insert(QStringLiteral("gyroXInverted"), prefs->controllerKbmGyroXInverted); preset.insert(QStringLiteral("gyroYInverted"), prefs->controllerKbmGyroYInverted); preset.insert(QStringLiteral("gyroZInverted"), prefs->controllerKbmGyroZInverted);
+    return preset;
+}
+
+bool StreamingPreferences::saveControllerKbmPreset(const QString& requestedName)
+{
+    const QString baseName = requestedName.trimmed();
+    if (baseName.isEmpty()) return false;
+    QString name = baseName;
+    int duplicate = 1;
+    while (controllerKbmPresetNames.contains(name, Qt::CaseInsensitive)) {
+        name = QStringLiteral("%1 (%2)").arg(baseName).arg(duplicate++);
+    }
+    QVariantMap preset;
+    preset.insert(QStringLiteral("id"), QUuid::createUuid().toString(QUuid::WithoutBraces));
+    preset.insert(QStringLiteral("name"), name);
+    const QVariantMap data = currentControllerKbmPresetData(this);
+    for (auto it = data.constBegin(); it != data.constEnd(); ++it) preset.insert(it.key(), it.value());
+    controllerKbmPresets.append(preset);
+    controllerKbmActivePresetIndex = controllerKbmPresets.size() - 1;
+    refreshControllerKbmPresetNames();
+    persistControllerKbmData();
+    emit controllerKbmPresetsChanged();
+    return true;
+}
+
+bool StreamingPreferences::updateControllerKbmPreset(int index)
+{
+    if (index < 0 || index >= controllerKbmPresets.size()) return false;
+    QVariantMap preset = controllerKbmPresets.at(index).toMap();
+    const QVariantMap data = currentControllerKbmPresetData(this);
+    for (auto it = data.constBegin(); it != data.constEnd(); ++it) preset.insert(it.key(), it.value());
+    controllerKbmPresets[index] = preset;
+    controllerKbmActivePresetIndex = index;
+    persistControllerKbmData();
+    emit controllerKbmPresetsChanged();
+    return true;
+}
+
+bool StreamingPreferences::loadControllerKbmPreset(int index)
+{
+    if (index < 0 || index >= controllerKbmPresets.size()) return false;
+    controllerKbmMappings = controllerKbmPresets.at(index).toMap()
+            .value(QStringLiteral("mappings")).toMap();
+    const QVariantMap preset = controllerKbmPresets.at(index).toMap();
+    controllerKbmStickSpeed = preset.value(QStringLiteral("stickSpeed"), controllerKbmStickSpeed).toInt();
+    controllerKbmContinuousStickMouse = preset.value(QStringLiteral("continuousStickMouse"), controllerKbmContinuousStickMouse).toBool();
+    controllerKbmLeftTriggerThreshold = preset.value(QStringLiteral("leftTriggerThreshold"), controllerKbmLeftTriggerThreshold).toInt();
+    controllerKbmLeftTriggerBehavior = preset.value(QStringLiteral("leftTriggerBehavior"), controllerKbmLeftTriggerBehavior).toString();
+    controllerKbmLeftTriggerRepeatRate = preset.value(QStringLiteral("leftTriggerRepeatRate"), controllerKbmLeftTriggerRepeatRate).toInt();
+    controllerKbmRightTriggerThreshold = preset.value(QStringLiteral("rightTriggerThreshold"), controllerKbmRightTriggerThreshold).toInt();
+    controllerKbmRightTriggerBehavior = preset.value(QStringLiteral("rightTriggerBehavior"), controllerKbmRightTriggerBehavior).toString();
+    controllerKbmRightTriggerRepeatRate = preset.value(QStringLiteral("rightTriggerRepeatRate"), controllerKbmRightTriggerRepeatRate).toInt();
+    controllerKbmGyroEnabled = preset.value(QStringLiteral("gyroEnabled"), controllerKbmGyroEnabled).toBool();
+    controllerKbmGyroSensitivity = preset.value(QStringLiteral("gyroSensitivity"), controllerKbmGyroSensitivity).toInt();
+    controllerKbmGyroShortcut = preset.value(QStringLiteral("gyroShortcut"), controllerKbmGyroShortcut).toString();
+    controllerKbmGyroHoldMode = preset.value(QStringLiteral("gyroHoldMode"), controllerKbmGyroHoldMode).toBool();
+    controllerKbmGyroActivationButtons = preset.value(QStringLiteral("gyroActivationButtons"), controllerKbmGyroActivationButtons).toString();
+    controllerKbmGyroPrecisionEnabled = preset.value(QStringLiteral("gyroPrecisionEnabled"), controllerKbmGyroPrecisionEnabled).toBool();
+    controllerKbmGyroPrecisionSensitivity = preset.value(QStringLiteral("gyroPrecisionSensitivity"), controllerKbmGyroPrecisionSensitivity).toInt();
+    controllerKbmGyroPrecisionButtons = preset.value(QStringLiteral("gyroPrecisionButtons"), controllerKbmGyroPrecisionButtons).toString();
+    controllerKbmGyroXSensitivity = preset.value(QStringLiteral("gyroXSensitivity"), controllerKbmGyroXSensitivity).toInt(); controllerKbmGyroYSensitivity = preset.value(QStringLiteral("gyroYSensitivity"), controllerKbmGyroYSensitivity).toInt(); controllerKbmGyroZSensitivity = preset.value(QStringLiteral("gyroZSensitivity"), controllerKbmGyroZSensitivity).toInt();
+    controllerKbmGyroXInverted = preset.value(QStringLiteral("gyroXInverted"), controllerKbmGyroXInverted).toBool(); controllerKbmGyroYInverted = preset.value(QStringLiteral("gyroYInverted"), controllerKbmGyroYInverted).toBool(); controllerKbmGyroZInverted = preset.value(QStringLiteral("gyroZInverted"), controllerKbmGyroZInverted).toBool();
+    controllerKbmActivePresetIndex = index;
+    persistControllerKbmData();
+    emit controllerKbmMappingsChanged();
+    emit controllerKbmSettingsChanged();
+    emit controllerKbmPresetsChanged();
+    return true;
+}
+
+bool StreamingPreferences::deleteControllerKbmPreset(int index)
+{
+    if (index < 0 || index >= controllerKbmPresets.size()) return false;
+    controllerKbmPresets.removeAt(index);
+    if (controllerKbmActivePresetIndex == index) controllerKbmActivePresetIndex = -1;
+    else if (controllerKbmActivePresetIndex > index) --controllerKbmActivePresetIndex;
+    refreshControllerKbmPresetNames();
+    persistControllerKbmData();
+    emit controllerKbmPresetsChanged();
+    return true;
+}
+
+bool StreamingPreferences::exportControllerKbmPreset(int index, const QUrl& destination) const
+{
+    if (index < 0 || index >= controllerKbmPresets.size() || !destination.isLocalFile()) return false;
+    const QVariantMap preset = controllerKbmPresets.at(index).toMap();
+    QJsonObject root;
+    root.insert(QStringLiteral("format"), QStringLiteral("moonlight-extended-controller-kbm-preset"));
+    root.insert(QStringLiteral("version"), 1);
+    root.insert(QStringLiteral("name"), preset.value(QStringLiteral("name")).toString());
+    root.insert(QStringLiteral("mappings"), QJsonObject::fromVariantMap(
+                    preset.value(QStringLiteral("mappings")).toMap()));
+    const QStringList fields = {QStringLiteral("stickSpeed"), QStringLiteral("continuousStickMouse"),
+        QStringLiteral("leftTriggerThreshold"), QStringLiteral("leftTriggerBehavior"), QStringLiteral("leftTriggerRepeatRate"),
+        QStringLiteral("rightTriggerThreshold"), QStringLiteral("rightTriggerBehavior"), QStringLiteral("rightTriggerRepeatRate"),
+        QStringLiteral("gyroEnabled"), QStringLiteral("gyroSensitivity"), QStringLiteral("gyroShortcut"), QStringLiteral("gyroHoldMode"), QStringLiteral("gyroActivationButtons"), QStringLiteral("gyroPrecisionEnabled"), QStringLiteral("gyroPrecisionSensitivity"), QStringLiteral("gyroPrecisionButtons"),
+        QStringLiteral("gyroXSensitivity"),QStringLiteral("gyroYSensitivity"),QStringLiteral("gyroZSensitivity"),QStringLiteral("gyroXInverted"),QStringLiteral("gyroYInverted"),QStringLiteral("gyroZInverted")};
+    for (const QString& field : fields)
+        if (preset.contains(field)) root.insert(field, QJsonValue::fromVariant(preset.value(field)));
+    QFile file(destination.toLocalFile());
+    return file.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+            file.write(QJsonDocument(root).toJson(QJsonDocument::Indented)) >= 0;
+}
+
+bool StreamingPreferences::importControllerKbmPreset(const QUrl& source)
+{
+    if (!source.isLocalFile()) return false;
+    QFile file(source.toLocalFile());
+    if (!file.open(QIODevice::ReadOnly) || file.size() > 1024 * 1024) return false;
+    const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
+    if (root.value(QStringLiteral("format")).toString() !=
+            QStringLiteral("moonlight-extended-controller-kbm-preset") ||
+            root.value(QStringLiteral("version")).toInt() != 1 ||
+            !root.value(QStringLiteral("mappings")).isObject()) return false;
+    const QString baseName = root.value(QStringLiteral("name")).toString().trimmed();
+    if (baseName.isEmpty()) return false;
+    QString name = baseName;
+    int duplicate = 1;
+    while (controllerKbmPresetNames.contains(name, Qt::CaseInsensitive)) {
+        name = QStringLiteral("%1 (%2)").arg(baseName).arg(duplicate++);
+    }
+    QVariantMap preset;
+    preset.insert(QStringLiteral("id"), QUuid::createUuid().toString(QUuid::WithoutBraces));
+    preset.insert(QStringLiteral("name"), name);
+    preset.insert(QStringLiteral("mappings"), root.value(QStringLiteral("mappings")).toObject().toVariantMap());
+    const QStringList fields = {QStringLiteral("stickSpeed"), QStringLiteral("continuousStickMouse"),
+        QStringLiteral("leftTriggerThreshold"), QStringLiteral("leftTriggerBehavior"), QStringLiteral("leftTriggerRepeatRate"),
+        QStringLiteral("rightTriggerThreshold"), QStringLiteral("rightTriggerBehavior"), QStringLiteral("rightTriggerRepeatRate"),
+        QStringLiteral("gyroEnabled"), QStringLiteral("gyroSensitivity"), QStringLiteral("gyroShortcut"), QStringLiteral("gyroHoldMode"), QStringLiteral("gyroActivationButtons"), QStringLiteral("gyroPrecisionEnabled"), QStringLiteral("gyroPrecisionSensitivity"), QStringLiteral("gyroPrecisionButtons"),
+        QStringLiteral("gyroXSensitivity"),QStringLiteral("gyroYSensitivity"),QStringLiteral("gyroZSensitivity"),QStringLiteral("gyroXInverted"),QStringLiteral("gyroYInverted"),QStringLiteral("gyroZInverted")};
+    for (const QString& field : fields)
+        if (root.contains(field)) preset.insert(field, root.value(field).toVariant());
+    controllerKbmPresets.append(preset);
+    controllerKbmActivePresetIndex = controllerKbmPresets.size() - 1;
+    refreshControllerKbmPresetNames();
+    persistControllerKbmData();
+    emit controllerKbmPresetsChanged();
+    return true;
+}
+
+QStringList StreamingPreferences::microphoneDeviceNames() const
+{
+    QStringList devices;
+    const bool initializedHere = (SDL_WasInit(SDL_INIT_AUDIO) & SDL_INIT_AUDIO) == 0;
+    if (initializedHere && SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
+        qWarning() << "Unable to initialize SDL audio while enumerating microphones:" << SDL_GetError();
+        return devices;
+    }
+    const int count = SDL_GetNumAudioDevices(1);
+    for (int i = 0; i < count; i++) {
+        const char* name = SDL_GetAudioDeviceName(i, 1);
+        if (name != nullptr) {
+            devices.append(QString::fromUtf8(name));
+        }
+    }
+    devices.removeDuplicates();
+    if (initializedHere) {
+        SDL_QuitSubSystem(SDL_INIT_AUDIO);
+    }
+    return devices;
+}
+
+void StreamingPreferences::requestStreamQuickAction(const QString& action)
+{
+    if (Session* session = Session::get()) {
+        session->handleStreamQuickAction(action);
+    }
 }
 
 int StreamingPreferences::getDefaultBitrate(int width, int height, int fps, bool yuv444)

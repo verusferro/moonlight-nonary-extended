@@ -4,6 +4,9 @@
 #include <QRect>
 #include <QQmlEngine>
 #include <QVariantList>
+#include <QStringList>
+#include <QVariantMap>
+#include <QUrl>
 
 class StreamingPreferences : public QObject
 {
@@ -22,6 +25,34 @@ public:
 
     Q_INVOKABLE void save();
 
+    Q_INVOKABLE QStringList microphoneDeviceNames() const;
+
+    Q_INVOKABLE QString controllerKbmAction(const QString& source) const;
+    Q_INVOKABLE void setControllerKbmAction(const QString& source, const QString& action);
+    Q_INVOKABLE QString controllerKbmActionDescription(const QString& action) const;
+    Q_INVOKABLE void resetControllerKbmMappings();
+    Q_INVOKABLE bool saveControllerKbmPreset(const QString& requestedName);
+    Q_INVOKABLE bool updateControllerKbmPreset(int index);
+    Q_INVOKABLE bool loadControllerKbmPreset(int index);
+    Q_INVOKABLE bool deleteControllerKbmPreset(int index);
+    Q_INVOKABLE bool exportControllerKbmPreset(int index, const QUrl& destination) const;
+    Q_INVOKABLE bool importControllerKbmPreset(const QUrl& source);
+    Q_INVOKABLE void requestControllerKbmConfiguration() { emit controllerKbmConfigurationRequested(); }
+    Q_INVOKABLE QString quickMenuKeyboardShortcutDescription() const;
+    Q_INVOKABLE QString microphoneMuteKeyboardShortcutDescription() const;
+    Q_INVOKABLE QString quickMenuControllerShortcutDescription() const;
+    Q_INVOKABLE void commitControllerKbmSettings();
+    Q_INVOKABLE void assignControllerKbmKeyboardKey(const QString& source, int qtKey,
+                                                     int nativeVirtualKey, int nativeScanCode);
+    Q_INVOKABLE void requestStreamQuickAction(const QString& action);
+    Q_INVOKABLE void refreshControllerStatus();
+    Q_INVOKABLE bool saveGyroStickProfile(const QString& name);
+    Q_INVOKABLE bool updateGyroStickProfile(int index);
+    Q_INVOKABLE bool loadGyroStickProfile(int index);
+    Q_INVOKABLE bool deleteGyroStickProfile(int index);
+    Q_INVOKABLE bool exportGyroStickProfile(int index, const QUrl& destination) const;
+    Q_INVOKABLE bool importGyroStickProfile(const QUrl& source);
+
     void reload();
 
     enum AudioConfig
@@ -31,6 +62,25 @@ public:
         AC_71_SURROUND
     };
     Q_ENUM(AudioConfig)
+
+    enum ControllerEmulationMode
+    {
+        CEM_AUTO,
+        CEM_XBOX,
+        CEM_DUALSHOCK4,
+        CEM_DUALSENSE
+    };
+    Q_ENUM(ControllerEmulationMode)
+
+    enum DualSenseAudioMode
+    {
+        DSAM_AUTO,
+        DSAM_USB_SPEAKER,
+        DSAM_USB_HEADSET,
+        DSAM_HAPTICS_ONLY,
+        DSAM_OFF
+    };
+    Q_ENUM(DualSenseAudioMode)
 
     enum VideoCodecConfig
     {
@@ -156,6 +206,9 @@ public:
     Q_PROPERTY(QString diagnosticsStatus MEMBER m_DiagnosticsStatus NOTIFY diagnosticsChanged)
     Q_PROPERTY(bool gameOptimizations MEMBER gameOptimizations NOTIFY gameOptimizationsChanged)
     Q_PROPERTY(bool playAudioOnHost MEMBER playAudioOnHost NOTIFY playAudioOnHostChanged)
+    Q_PROPERTY(bool micCapture MEMBER micCapture NOTIFY micCaptureChanged)
+    Q_PROPERTY(QString micDevice MEMBER micDevice NOTIFY micDeviceChanged)
+    Q_PROPERTY(bool stopSteamForDualSense MEMBER stopSteamForDualSense NOTIFY stopSteamForDualSenseChanged)
     Q_PROPERTY(bool multiController MEMBER multiController NOTIFY multiControllerChanged)
     Q_PROPERTY(bool enableMdns MEMBER enableMdns NOTIFY enableMdnsChanged)
     Q_PROPERTY(bool quitAppAfter MEMBER quitAppAfter NOTIFY quitAppAfterChanged)
@@ -169,6 +222,8 @@ public:
     Q_PROPERTY(bool detectNetworkBlocking MEMBER detectNetworkBlocking NOTIFY detectNetworkBlockingChanged)
     Q_PROPERTY(bool showPerformanceOverlay MEMBER showPerformanceOverlay NOTIFY showPerformanceOverlayChanged)
     Q_PROPERTY(AudioConfig audioConfig MEMBER audioConfig NOTIFY audioConfigChanged)
+    Q_PROPERTY(ControllerEmulationMode controllerEmulationMode MEMBER controllerEmulationMode NOTIFY controllerEmulationModeChanged)
+    Q_PROPERTY(DualSenseAudioMode dualSenseAudioMode MEMBER dualSenseAudioMode NOTIFY dualSenseAudioModeChanged)
     Q_PROPERTY(VideoCodecConfig videoCodecConfig MEMBER videoCodecConfig NOTIFY videoCodecConfigChanged)
     Q_PROPERTY(bool enableHdr MEMBER enableHdr NOTIFY enableHdrChanged)
     Q_PROPERTY(bool enableYUV444 MEMBER enableYUV444 NOTIFY enableYUV444Changed)
@@ -182,6 +237,75 @@ public:
     Q_PROPERTY(bool backgroundGamepad MEMBER backgroundGamepad NOTIFY backgroundGamepadChanged)
     Q_PROPERTY(bool reverseScrollDirection MEMBER reverseScrollDirection NOTIFY reverseScrollDirectionChanged)
     Q_PROPERTY(bool swapFaceButtons MEMBER swapFaceButtons NOTIFY swapFaceButtonsChanged)
+    Q_PROPERTY(bool gyroOverrideEnabled MEMBER gyroOverrideEnabled NOTIFY gyroOverrideChanged)
+    Q_PROPERTY(int gyroXAxisSource MEMBER gyroXAxisSource NOTIFY gyroOverrideChanged)
+    Q_PROPERTY(int gyroYAxisSource MEMBER gyroYAxisSource NOTIFY gyroOverrideChanged)
+    Q_PROPERTY(int gyroZAxisSource MEMBER gyroZAxisSource NOTIFY gyroOverrideChanged)
+    Q_PROPERTY(bool gyroXAxisInverted MEMBER gyroXAxisInverted NOTIFY gyroOverrideChanged)
+    Q_PROPERTY(bool gyroYAxisInverted MEMBER gyroYAxisInverted NOTIFY gyroOverrideChanged)
+    Q_PROPERTY(bool gyroZAxisInverted MEMBER gyroZAxisInverted NOTIFY gyroOverrideChanged)
+    Q_PROPERTY(bool gyroXAxisDisabled MEMBER gyroXAxisDisabled NOTIFY gyroOverrideChanged)
+    Q_PROPERTY(bool gyroYAxisDisabled MEMBER gyroYAxisDisabled NOTIFY gyroOverrideChanged)
+    Q_PROPERTY(bool gyroZAxisDisabled MEMBER gyroZAxisDisabled NOTIFY gyroOverrideChanged)
+    Q_PROPERTY(bool controllerKbmMode MEMBER controllerKbmMode NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerKbmStickSpeed MEMBER controllerKbmStickSpeed NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool controllerKbmContinuousStickMouse MEMBER controllerKbmContinuousStickMouse NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerKbmTriggerThreshold MEMBER controllerKbmTriggerThreshold NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QString controllerKbmTriggerBehavior MEMBER controllerKbmTriggerBehavior NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerKbmTriggerRepeatRate MEMBER controllerKbmTriggerRepeatRate NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerKbmLeftTriggerThreshold MEMBER controllerKbmLeftTriggerThreshold NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QString controllerKbmLeftTriggerBehavior MEMBER controllerKbmLeftTriggerBehavior NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerKbmLeftTriggerRepeatRate MEMBER controllerKbmLeftTriggerRepeatRate NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerKbmRightTriggerThreshold MEMBER controllerKbmRightTriggerThreshold NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QString controllerKbmRightTriggerBehavior MEMBER controllerKbmRightTriggerBehavior NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerKbmRightTriggerRepeatRate MEMBER controllerKbmRightTriggerRepeatRate NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QStringList controllerKbmPresetNames MEMBER controllerKbmPresetNames NOTIFY controllerKbmPresetsChanged)
+    Q_PROPERTY(int controllerKbmActivePresetIndex MEMBER controllerKbmActivePresetIndex NOTIFY controllerKbmPresetsChanged)
+    Q_PROPERTY(QString controllerKbmShortcut MEMBER controllerKbmShortcut NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool controllerKbmGyroEnabled MEMBER controllerKbmGyroEnabled NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerKbmGyroSensitivity MEMBER controllerKbmGyroSensitivity NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QString controllerKbmGyroShortcut MEMBER controllerKbmGyroShortcut NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool controllerKbmGyroHoldMode MEMBER controllerKbmGyroHoldMode NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QString controllerKbmGyroActivationButtons MEMBER controllerKbmGyroActivationButtons NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool controllerKbmGyroPrecisionEnabled MEMBER controllerKbmGyroPrecisionEnabled NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerKbmGyroPrecisionSensitivity MEMBER controllerKbmGyroPrecisionSensitivity NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QString controllerKbmGyroPrecisionButtons MEMBER controllerKbmGyroPrecisionButtons NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int dualSenseControllerVolume MEMBER dualSenseControllerVolume NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool triggerOverrideEnabled MEMBER triggerOverrideEnabled NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int leftTriggerOverrideThreshold MEMBER leftTriggerOverrideThreshold NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int rightTriggerOverrideThreshold MEMBER rightTriggerOverrideThreshold NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerKbmGyroXSensitivity MEMBER controllerKbmGyroXSensitivity NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerKbmGyroYSensitivity MEMBER controllerKbmGyroYSensitivity NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerKbmGyroZSensitivity MEMBER controllerKbmGyroZSensitivity NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool controllerKbmGyroXInverted MEMBER controllerKbmGyroXInverted NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool controllerKbmGyroYInverted MEMBER controllerKbmGyroYInverted NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool controllerKbmGyroZInverted MEMBER controllerKbmGyroZInverted NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int quickMenuKeyboardKey MEMBER quickMenuKeyboardKey NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int quickMenuKeyboardModifiers MEMBER quickMenuKeyboardModifiers NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int microphoneMuteKeyboardKey MEMBER microphoneMuteKeyboardKey NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int microphoneMuteKeyboardModifiers MEMBER microphoneMuteKeyboardModifiers NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool gyroStickEnabled MEMBER gyroStickEnabled NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int gyroStickSensitivity MEMBER gyroStickSensitivity NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int gyroStickXSensitivity MEMBER gyroStickXSensitivity NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int gyroStickYSensitivity MEMBER gyroStickYSensitivity NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int gyroStickZSensitivity MEMBER gyroStickZSensitivity NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool gyroStickXInverted MEMBER gyroStickXInverted NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool gyroStickYInverted MEMBER gyroStickYInverted NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool gyroStickZInverted MEMBER gyroStickZInverted NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool gyroStickSmoothing MEMBER gyroStickSmoothing NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int gyroStickDeadzone MEMBER gyroStickDeadzone NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QString gyroStickShortcut MEMBER gyroStickShortcut NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool gyroStickHoldMode MEMBER gyroStickHoldMode NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QString gyroStickActivationButtons MEMBER gyroStickActivationButtons NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(bool gyroStickPrecisionEnabled MEMBER gyroStickPrecisionEnabled NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int gyroStickPrecisionSensitivity MEMBER gyroStickPrecisionSensitivity NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QString gyroStickPrecisionButtons MEMBER gyroStickPrecisionButtons NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QStringList gyroStickProfileNames MEMBER gyroStickProfileNames NOTIFY gyroStickProfilesChanged)
+    Q_PROPERTY(int gyroStickActiveProfileIndex MEMBER gyroStickActiveProfileIndex NOTIFY gyroStickProfilesChanged)
+    Q_PROPERTY(bool controllerBatteryWarningEnabled MEMBER controllerBatteryWarningEnabled NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(int controllerBatteryWarningThreshold MEMBER controllerBatteryWarningThreshold NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QVariantList controllerStatus MEMBER controllerStatus NOTIFY controllerStatusChanged)
+    Q_PROPERTY(bool anyControllerHeadsetConnected MEMBER anyControllerHeadsetConnected NOTIFY controllerStatusChanged)
     Q_PROPERTY(bool keepAwake MEMBER keepAwake NOTIFY keepAwakeChanged)
     Q_PROPERTY(CaptureSysKeysMode captureSysKeysMode MEMBER captureSysKeysMode NOTIFY captureSysKeysModeChanged)
     Q_PROPERTY(Language language MEMBER language NOTIFY languageChanged);
@@ -212,6 +336,9 @@ public:
     bool traceVrrFrames;
     bool gameOptimizations;
     bool playAudioOnHost;
+    bool micCapture;
+    QString micDevice;
+    bool stopSteamForDualSense;
     bool multiController;
     bool enableMdns;
     bool quitAppAfter;
@@ -229,9 +356,71 @@ public:
     bool backgroundGamepad;
     bool reverseScrollDirection;
     bool swapFaceButtons;
+    bool gyroOverrideEnabled;
+    int gyroXAxisSource;
+    int gyroYAxisSource;
+    int gyroZAxisSource;
+    bool gyroXAxisInverted;
+    bool gyroYAxisInverted;
+    bool gyroZAxisInverted;
+    bool gyroXAxisDisabled;
+    bool gyroYAxisDisabled;
+    bool gyroZAxisDisabled;
+    bool controllerKbmMode;
+    int controllerKbmStickSpeed;
+    bool controllerKbmContinuousStickMouse;
+    int controllerKbmTriggerThreshold;
+    QString controllerKbmTriggerBehavior;
+    int controllerKbmTriggerRepeatRate;
+    int controllerKbmLeftTriggerThreshold;
+    QString controllerKbmLeftTriggerBehavior;
+    int controllerKbmLeftTriggerRepeatRate;
+    int controllerKbmRightTriggerThreshold;
+    QString controllerKbmRightTriggerBehavior;
+    int controllerKbmRightTriggerRepeatRate;
+    QVariantMap controllerKbmMappings;
+    QVariantList controllerKbmPresets;
+    QStringList controllerKbmPresetNames;
+    int controllerKbmActivePresetIndex;
+    QString controllerKbmShortcut;
+    bool controllerKbmGyroEnabled;
+    int controllerKbmGyroSensitivity;
+    QString controllerKbmGyroShortcut;
+    bool controllerKbmGyroHoldMode;
+    QString controllerKbmGyroActivationButtons;
+    bool controllerKbmGyroPrecisionEnabled;
+    int controllerKbmGyroPrecisionSensitivity;
+    QString controllerKbmGyroPrecisionButtons;
+    int dualSenseControllerVolume;
+    bool triggerOverrideEnabled;
+    int leftTriggerOverrideThreshold, rightTriggerOverrideThreshold;
+    int controllerKbmGyroXSensitivity, controllerKbmGyroYSensitivity, controllerKbmGyroZSensitivity;
+    bool controllerKbmGyroXInverted, controllerKbmGyroYInverted, controllerKbmGyroZInverted;
+    int quickMenuKeyboardKey;
+    int quickMenuKeyboardModifiers;
+    int microphoneMuteKeyboardKey, microphoneMuteKeyboardModifiers;
+    bool gyroStickEnabled;
+    int gyroStickSensitivity, gyroStickXSensitivity, gyroStickYSensitivity, gyroStickZSensitivity;
+    bool gyroStickXInverted, gyroStickYInverted, gyroStickZInverted, gyroStickSmoothing;
+    int gyroStickDeadzone;
+    QString gyroStickShortcut;
+    bool gyroStickHoldMode;
+    QString gyroStickActivationButtons;
+    bool gyroStickPrecisionEnabled;
+    int gyroStickPrecisionSensitivity;
+    QString gyroStickPrecisionButtons;
+    QVariantList gyroStickProfiles;
+    QStringList gyroStickProfileNames;
+    int gyroStickActiveProfileIndex;
+    bool controllerBatteryWarningEnabled;
+    int controllerBatteryWarningThreshold;
+    QVariantList controllerStatus;
+    bool anyControllerHeadsetConnected;
     bool keepAwake;
     int packetSize;
     AudioConfig audioConfig;
+    ControllerEmulationMode controllerEmulationMode;
+    DualSenseAudioMode dualSenseAudioMode;
     VideoCodecConfig videoCodecConfig;
     bool enableHdr;
     bool enableYUV444;
@@ -256,6 +445,9 @@ signals:
     void diagnosticsChanged();
     void gameOptimizationsChanged();
     void playAudioOnHostChanged();
+    void micCaptureChanged();
+    void micDeviceChanged();
+    void stopSteamForDualSenseChanged();
     void multiControllerChanged();
     void unsupportedFpsChanged();
     void enableMdnsChanged();
@@ -263,6 +455,8 @@ signals:
     void absoluteMouseModeChanged();
     void absoluteTouchModeChanged();
     void audioConfigChanged();
+    void controllerEmulationModeChanged();
+    void dualSenseAudioModeChanged();
     void videoCodecConfigChanged();
     void enableHdrChanged();
     void enableYUV444Changed();
@@ -281,6 +475,14 @@ signals:
     void backgroundGamepadChanged();
     void reverseScrollDirectionChanged();
     void swapFaceButtonsChanged();
+    void gyroOverrideChanged();
+    void controllerKbmSettingsChanged();
+    void controllerKbmMappingsChanged();
+    void controllerKbmPresetsChanged();
+    void gyroStickProfilesChanged();
+    void controllerStatusChanged();
+    void controllerKbmConfigurationRequested();
+    void streamQuickActionRequested(QString action);
     void captureSysKeysModeChanged();
     void keepAwakeChanged();
     void languageChanged();
@@ -290,6 +492,10 @@ private:
     explicit StreamingPreferences(QQmlEngine *qmlEngine);
 
     QString getSuffixFromLanguage(Language lang);
+    void refreshControllerKbmPresetNames();
+    void persistControllerKbmData();
+    QVariantMap currentGyroStickProfile(const QString& name = QString()) const;
+    void refreshGyroStickProfileNames();
 
     QQmlEngine* m_QmlEngine;
     bool m_ExportingDiagnostics = false;

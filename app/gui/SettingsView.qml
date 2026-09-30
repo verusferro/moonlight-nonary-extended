@@ -2,6 +2,7 @@ import QtQuick 2.9
 import QtQuick.Controls 2.2
 import QtQuick.Layouts 1.2
 import QtQuick.Window 2.2
+import QtQuick.Dialogs
 
 import StreamingPreferences 1.0
 import ComputerManager 1.0
@@ -1608,7 +1609,6 @@ Flickable {
                     }
                 }
 
-
                 CheckBox {
                     id: audioPcCheck
                     width: parent.width
@@ -1641,6 +1641,7 @@ Flickable {
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Mutes Moonlight's audio when you Alt+Tab out of the stream or click on a different window.")
                 }
+
             }
         }
 
@@ -1681,6 +1682,566 @@ Flickable {
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("This will close the app or game you are streaming when you end your stream. You will lose any unsaved progress!")
                 }
+            }
+        }
+
+        GroupBox {
+            id: extendedSettingsGroupBox
+            width: (parent.width - (parent.leftPadding + parent.rightPadding))
+            padding: 12
+            title: "<font color=\"skyblue\">" + qsTr("Extended Settings") + "</font>"
+            font.pointSize: 12
+
+            Column {
+                anchors.fill: parent
+                spacing: 5
+
+                Label {
+                    width: parent.width
+                    text: qsTr("Host controller emulation (Apollo Extended)")
+                    font.pointSize: 12
+                    wrapMode: Text.Wrap
+                }
+
+                AutoResizingComboBox {
+                    id: controllerEmulationComboBox
+                    width: parent.width
+                    model: [qsTr("Automatic"), qsTr("Xbox 360"), qsTr("DualShock 4"), qsTr("DualSense")]
+                    Component.onCompleted: currentIndex = Number(StreamingPreferences.controllerEmulationMode)
+                    onActivated: StreamingPreferences.controllerEmulationMode = currentIndex
+                }
+
+                Label {
+                    width: parent.width
+                    text: qsTr("DualSense audio and HD haptics (Apollo Extended)")
+                    font.pointSize: 12
+                    wrapMode: Text.Wrap
+                }
+
+                AutoResizingComboBox {
+                    id: dualSenseAudioModeComboBox
+                    width: parent.width
+                    model: [qsTr("Automatic"), qsTr("USB controller speaker"),
+                            qsTr("USB controller headset"), qsTr("HD haptics only"), qsTr("Off")]
+                    Component.onCompleted: currentIndex = Number(StreamingPreferences.dualSenseAudioMode)
+                    onActivated: StreamingPreferences.dualSenseAudioMode = currentIndex
+                }
+
+                CheckBox {
+                    id: micCaptureCheck
+                    width: parent.width
+                    text: qsTr("Send microphone to host PC (Apollo Extended)")
+                    font.pointSize: 12
+                    checked: StreamingPreferences.micCapture
+                    onCheckedChanged: StreamingPreferences.micCapture = checked
+
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 5000
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Sends the selected client microphone through the encrypted stream to the Steam Streaming Microphone endpoint on the host.")
+                }
+
+                Label {
+                    width: parent.width
+                    visible: micCaptureCheck.checked
+                    text: qsTr("Microphone source")
+                    font.pointSize: 12
+                    wrapMode: Text.Wrap
+                }
+
+                AutoResizingComboBox {
+                    id: micDeviceComboBox
+                    width: parent.width
+                    visible: micCaptureCheck.checked
+                    textRole: "text"
+                    model: ListModel { id: micDeviceListModel }
+
+                    function reloadDevices() {
+                        micDeviceListModel.clear()
+                        micDeviceListModel.append({ "text": qsTr("Windows default microphone"), "value": "" })
+                        micDeviceListModel.append({ "text": qsTr("DualSense controller microphone"), "value": "__dualsense__" })
+                        var devices = StreamingPreferences.microphoneDeviceNames()
+                        for (var i = 0; i < devices.length; i++)
+                            micDeviceListModel.append({ "text": devices[i], "value": devices[i] })
+
+                        currentIndex = 0
+                        for (var j = 0; j < micDeviceListModel.count; j++) {
+                            if (micDeviceListModel.get(j).value === StreamingPreferences.micDevice) {
+                                currentIndex = j
+                                break
+                            }
+                        }
+                    }
+
+                    Component.onCompleted: reloadDevices()
+                    onActivated: StreamingPreferences.micDevice = micDeviceListModel.get(currentIndex).value
+                }
+
+                CheckBox {
+                    width: parent.width
+                    visible: micCaptureCheck.checked && StreamingPreferences.micDevice === "__dualsense__"
+                    text: qsTr("Automatically close Steam while using the DualSense microphone (prevents Steam Input from conflicting with the controller)")
+                    font.pointSize: 12
+                    checked: StreamingPreferences.stopSteamForDualSense
+                    onCheckedChanged: StreamingPreferences.stopSteamForDualSense = checked
+                }
+
+                Rectangle { width: parent.width; height: 1; color: "#505050" }
+
+                CheckBox {
+                    id: gyroOverrideCheck
+                    width: parent.width
+                    text: qsTr("Enable gyroscope axis override")
+                    font.pointSize: 12
+                    checked: StreamingPreferences.gyroOverrideEnabled
+                    onCheckedChanged: StreamingPreferences.gyroOverrideEnabled = checked
+                }
+
+                Column {
+                    width: parent.width; spacing: 8
+                    enabled: gyroOverrideCheck.checked
+                    opacity: enabled ? 1.0 : 0.45
+
+                    Repeater {
+                        model: [
+                            { label: qsTr("Y axis mapping"), choices: [qsTr("-Y axis"), qsTr("-Z axis"), qsTr("-X axis")], values: [1, 2, 0], axis: "y" },
+                            { label: qsTr("X axis mapping"), choices: [qsTr("-X axis"), qsTr("-Z axis"), qsTr("-Y axis")], values: [0, 2, 1], axis: "x" },
+                            { label: qsTr("Z axis mapping"), choices: [qsTr("-Z axis"), qsTr("-Y axis"), qsTr("-X axis")], values: [2, 1, 0], axis: "z" }
+                        ]
+                        delegate: Column {
+                            width: parent.width; spacing: 3
+                            property int sourceValue: modelData.axis === "x" ? StreamingPreferences.gyroXAxisSource :
+                                                      modelData.axis === "y" ? StreamingPreferences.gyroYAxisSource : StreamingPreferences.gyroZAxisSource
+                            Label { text: modelData.label; font.pointSize: 12 }
+                            RowLayout {
+                                width: parent.width
+                                AutoResizingComboBox {
+                                    Layout.fillWidth: true
+                                    model: modelData.choices
+                                    currentIndex: modelData.values.indexOf(sourceValue)
+                                    onActivated: {
+                                        if (modelData.axis === "x") StreamingPreferences.gyroXAxisSource = modelData.values[index]
+                                        else if (modelData.axis === "y") StreamingPreferences.gyroYAxisSource = modelData.values[index]
+                                        else StreamingPreferences.gyroZAxisSource = modelData.values[index]
+                                    }
+                                }
+                                CheckBox {
+                                    text: qsTr("Invert")
+                                    checked: modelData.axis === "x" ? StreamingPreferences.gyroXAxisInverted :
+                                             modelData.axis === "y" ? StreamingPreferences.gyroYAxisInverted : StreamingPreferences.gyroZAxisInverted
+                                    onClicked: {
+                                        if (modelData.axis === "x") StreamingPreferences.gyroXAxisInverted = checked
+                                        else if (modelData.axis === "y") StreamingPreferences.gyroYAxisInverted = checked
+                                        else StreamingPreferences.gyroZAxisInverted = checked
+                                    }
+                                }
+                                CheckBox {
+                                    text: qsTr("Disable")
+                                    checked: modelData.axis === "x" ? StreamingPreferences.gyroXAxisDisabled :
+                                             modelData.axis === "y" ? StreamingPreferences.gyroYAxisDisabled : StreamingPreferences.gyroZAxisDisabled
+                                    onClicked: {
+                                        if (modelData.axis === "x") StreamingPreferences.gyroXAxisDisabled = checked
+                                        else if (modelData.axis === "y") StreamingPreferences.gyroYAxisDisabled = checked
+                                        else StreamingPreferences.gyroZAxisDisabled = checked
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Button {
+                        text: qsTr("Revert")
+                        onClicked: {
+                            StreamingPreferences.gyroXAxisSource = 0; StreamingPreferences.gyroYAxisSource = 1; StreamingPreferences.gyroZAxisSource = 2
+                            StreamingPreferences.gyroXAxisInverted = false; StreamingPreferences.gyroYAxisInverted = false; StreamingPreferences.gyroZAxisInverted = false
+                            StreamingPreferences.gyroXAxisDisabled = false; StreamingPreferences.gyroYAxisDisabled = false; StreamingPreferences.gyroZAxisDisabled = false
+                        }
+                    }
+                }
+
+                Rectangle { width: parent.width; height: 1; color: "#505050" }
+
+                RowLayout {
+                    width: parent.width
+                    CheckBox {
+                        id: controllerKbmCheck
+                        Layout.fillWidth: true
+                        text: qsTr("Use controller as keyboard and mouse")
+                        font.pointSize: 12
+                        checked: StreamingPreferences.controllerKbmMode
+                        onToggled: StreamingPreferences.controllerKbmMode = checked
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Replaces host gamepad forwarding with keyboard and mouse mappings. Applies to USB and Bluetooth controllers after reconnecting the stream.")
+                    }
+                    Button {
+                        text: qsTr("Configure")
+                        onClicked: StreamingPreferences.requestControllerKbmConfiguration()
+                    }
+                }
+
+                Label {
+                    width: parent.width
+                    text: qsTr("Quick Menu shortcuts")
+                    font.bold: true; font.pointSize: 12
+                }
+                RowLayout {
+                    width: parent.width
+                    Label { text: qsTr("Keyboard"); Layout.preferredWidth: 170 }
+                    Label {
+                        Layout.fillWidth: true
+                        text: { StreamingPreferences.quickMenuKeyboardKey; StreamingPreferences.quickMenuKeyboardModifiers; return StreamingPreferences.quickMenuKeyboardShortcutDescription() }
+                    }
+                    Button { text: qsTr("Change"); onClicked: quickMenuKeyboardDialog.open() }
+                }
+                RowLayout {
+                    width: parent.width
+                    Label { text: qsTr("Controller"); Layout.preferredWidth: 170 }
+                    Label {
+                        Layout.fillWidth: true
+                        text: { StreamingPreferences.controllerKbmShortcut; return StreamingPreferences.quickMenuControllerShortcutDescription() }
+                    }
+                    Button { text: qsTr("Change"); onClicked: quickMenuControllerDialog.openForCurrent() }
+                }
+
+                NavigableDialog {
+                    id: quickMenuKeyboardDialog
+                    title: qsTr("Quick Menu keyboard shortcut")
+                    standardButtons: Dialog.Cancel
+                    onOpened: quickMenuKeyboardCapture.forceActiveFocus()
+
+                    ColumnLayout {
+                        spacing: 12
+
+                        Label {
+                            text: qsTr("Press a shortcut containing at least two keys.")
+                            wrapMode: Text.Wrap
+                            Layout.maximumWidth: 460
+                        }
+
+                        TextField {
+                            id: quickMenuKeyboardCapture
+                            Layout.fillWidth: true
+                            readOnly: true
+                            focus: true
+                            placeholderText: qsTr("Waiting for shortcut...")
+                            Keys.onPressed: function(event) {
+                                var key = event.nativeVirtualKey > 0 ? event.nativeVirtualKey : event.key
+                                var mods = 0; var count = 1
+                                if (event.modifiers & Qt.ControlModifier) { mods |= 1; count++ }
+                                if (event.modifiers & Qt.AltModifier) { mods |= 2; count++ }
+                                if (event.modifiers & Qt.ShiftModifier) { mods |= 4; count++ }
+                                if (event.modifiers & Qt.MetaModifier) { mods |= 8; count++ }
+                                if (count >= 2 && key !== Qt.Key_Control && key !== Qt.Key_Alt && key !== Qt.Key_Shift && key !== Qt.Key_Meta) {
+                                    StreamingPreferences.quickMenuKeyboardKey = key
+                                    StreamingPreferences.quickMenuKeyboardModifiers = mods
+                                    quickMenuKeyboardDialog.close()
+                                    event.accepted = true
+                                }
+                            }
+                        }
+                    }
+                }
+
+                NavigableDialog {
+                    id: quickMenuControllerDialog
+                    title: qsTr("Quick Menu controller shortcut")
+                    standardButtons: Dialog.Ok | Dialog.Cancel
+
+                    function openForCurrent() { open() }
+
+                    function applyCurrentShortcut() {
+                        var selected = {}
+                        var parts = StreamingPreferences.controllerKbmShortcut.split(",")
+                        for (var i = 0; i < parts.length; i++) {
+                            if (parts[i].length > 0)
+                                selected[parts[i]] = true
+                        }
+                        for (var j = 0; j < quickMenuControllerRepeater.count; j++) {
+                            var item = quickMenuControllerRepeater.itemAt(j)
+                            if (item)
+                                item.checked = selected[String(item.buttonIndex)] === true
+                        }
+                        updateOkEnabled()
+                    }
+
+                    function collectSelection() {
+                        var values = []
+                        for (var i = 0; i < quickMenuControllerRepeater.count; i++) {
+                            var item = quickMenuControllerRepeater.itemAt(i)
+                            if (item && item.checked)
+                                values.push(String(item.buttonIndex))
+                        }
+                        return values.join(",")
+                    }
+
+                    function updateOkEnabled() {
+                        var count = 0
+                        for (var i = 0; i < quickMenuControllerRepeater.count; i++) {
+                            var item = quickMenuControllerRepeater.itemAt(i)
+                            if (item && item.checked)
+                                count++
+                        }
+                        if (quickMenuControllerDialog.standardButton)
+                            quickMenuControllerDialog.standardButton(Dialog.Ok).enabled = count >= 2
+                    }
+
+                    onOpened: {
+                        if (quickMenuControllerRepeater.count > 0)
+                            applyCurrentShortcut()
+                        else
+                            Qt.callLater(applyCurrentShortcut)
+                    }
+
+                    onAccepted: {
+                        var selection = collectSelection()
+                        if (selection.split(",").filter(function(v){ return v.length > 0 }).length >= 2)
+                            StreamingPreferences.controllerKbmShortcut = selection
+                    }
+
+                    ColumnLayout {
+                        spacing: 10
+
+                        Label {
+                            text: qsTr("Select at least two controller buttons.")
+                            wrapMode: Text.Wrap
+                            Layout.maximumWidth: 480
+                        }
+
+                        GridLayout {
+                            columns: 3
+                            columnSpacing: 8
+                            rowSpacing: 4
+
+                            Repeater {
+                                id: quickMenuControllerRepeater
+                                model: [
+                                    {i:0,n:"A / Cross"},{i:1,n:"B / Circle"},{i:2,n:"X / Square"},{i:3,n:"Y / Triangle"},
+                                    {i:4,n:"Share / Create"},{i:5,n:"Home / PS"},{i:6,n:"Start / Options"},
+                                    {i:9,n:"LB"},{i:10,n:"RB"},{i:15,n:"Mute"},
+                                    {i:16,n:"Paddle 1"},{i:17,n:"Paddle 2"},{i:18,n:"Paddle 3"},{i:19,n:"Paddle 4"},
+                                    {i:20,n:"Touchpad"}
+                                ]
+                                CheckBox {
+                                    property int buttonIndex: modelData.i
+                                    text: modelData.n
+                                    onToggled: quickMenuControllerDialog.updateOkEnabled()
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Column {
+                    id: controllerKbmOptions
+                    width: parent.width; height: 0; spacing: 8; visible: false
+                    enabled: controllerKbmCheck.checked
+                    opacity: enabled ? 1.0 : 0.45
+                    property int mappingRevision: 0
+
+                    Connections {
+                        target: StreamingPreferences
+                        function onControllerKbmMappingsChanged() { controllerKbmOptions.mappingRevision++ }
+                    }
+
+                    Label { text: qsTr("Input settings"); font.bold: true; font.pointSize: 12 }
+                    RowLayout {
+                        width: parent.width
+                        Label { text: qsTr("Mouse stick speed"); Layout.fillWidth: true }
+                        SpinBox { from: 10; to: 400; value: StreamingPreferences.controllerKbmStickSpeed; onValueModified: StreamingPreferences.controllerKbmStickSpeed = value }
+                    }
+                    CheckBox {
+                        text: qsTr("Continuous stick mouse movement")
+                        checked: StreamingPreferences.controllerKbmContinuousStickMouse
+                        onCheckedChanged: StreamingPreferences.controllerKbmContinuousStickMouse = checked
+                    }
+                    RowLayout {
+                        width: parent.width
+                        Label { text: qsTr("Trigger threshold (%)"); Layout.fillWidth: true }
+                        SpinBox { from: 1; to: 100; value: StreamingPreferences.controllerKbmTriggerThreshold; onValueModified: StreamingPreferences.controllerKbmTriggerThreshold = value }
+                    }
+                    RowLayout {
+                        width: parent.width
+                        Label { text: qsTr("Trigger behavior"); Layout.fillWidth: true }
+                        AutoResizingComboBox {
+                            model: [qsTr("Hold"), qsTr("Single press"), qsTr("Repeat")]
+                            currentIndex: StreamingPreferences.controllerKbmTriggerBehavior === "single" ? 1 : StreamingPreferences.controllerKbmTriggerBehavior === "repeat" ? 2 : 0
+                            onActivated: StreamingPreferences.controllerKbmTriggerBehavior = ["hold", "single", "repeat"][index]
+                        }
+                    }
+                    RowLayout {
+                        width: parent.width
+                        visible: StreamingPreferences.controllerKbmTriggerBehavior === "repeat"
+                        Label { text: qsTr("Trigger repeats per second"); Layout.fillWidth: true }
+                        SpinBox { from: 1; to: 30; value: StreamingPreferences.controllerKbmTriggerRepeatRate; onValueModified: StreamingPreferences.controllerKbmTriggerRepeatRate = value }
+                    }
+
+                    Label { text: qsTr("Controller mappings"); font.bold: true; font.pointSize: 12 }
+                    Repeater {
+                        model: [
+                            { id: "button_a", label: "A / Cross" }, { id: "button_b", label: "B / Circle" },
+                            { id: "button_x", label: "X / Square" }, { id: "button_y", label: "Y / Triangle" },
+                            { id: "dpad_up", label: "D-pad Up" }, { id: "dpad_down", label: "D-pad Down" },
+                            { id: "dpad_left", label: "D-pad Left" }, { id: "dpad_right", label: "D-pad Right" },
+                            { id: "button_lb", label: "Left Shoulder" }, { id: "button_rb", label: "Right Shoulder" },
+                            { id: "button_l3", label: "Left Stick Click" }, { id: "button_r3", label: "Right Stick Click" },
+                            { id: "button_start", label: "Start / Options" }, { id: "button_back", label: "Back / Share / Create" },
+                            { id: "button_guide", label: "Guide / PS" }, { id: "button_misc", label: "Misc / Mute" },
+                            { id: "button_touchpad", label: "Touchpad Click" },
+                            { id: "paddle_1", label: "Paddle 1" }, { id: "paddle_2", label: "Paddle 2" },
+                            { id: "paddle_3", label: "Paddle 3" }, { id: "paddle_4", label: "Paddle 4" },
+                            { id: "trigger_left", label: "Left Trigger" }, { id: "trigger_right", label: "Right Trigger" }
+                        ]
+                        delegate: RowLayout {
+                            width: parent.width
+                            property string currentAction: { controllerKbmOptions.mappingRevision; return StreamingPreferences.controllerKbmAction(modelData.id) }
+                            Label { text: modelData.label; Layout.fillWidth: true }
+                            Label { text: StreamingPreferences.controllerKbmActionDescription(parent.currentAction); Layout.maximumWidth: parent.width * 0.42; elide: Text.ElideRight }
+                            Button {
+                                text: qsTr("Assign")
+                                onClicked: { mappingDialog.sourceId = modelData.id; mappingDialog.axisSource = false; mappingDialog.openForAction(parent.currentAction) }
+                            }
+                        }
+                    }
+                    Repeater {
+                        model: [{id:"left_stick", label:"Left Stick"}, {id:"right_stick", label:"Right Stick"}]
+                        delegate: RowLayout {
+                            width: parent.width
+                            property string currentAction: { controllerKbmOptions.mappingRevision; return StreamingPreferences.controllerKbmAction(modelData.id) }
+                            Label { text: modelData.label; Layout.fillWidth: true }
+                            Label { text: StreamingPreferences.controllerKbmActionDescription(parent.currentAction); Layout.maximumWidth: parent.width * 0.42; elide: Text.ElideRight }
+                            Button { text: qsTr("Assign"); onClicked: { mappingDialog.sourceId = modelData.id; mappingDialog.axisSource = true; mappingDialog.openForAction(parent.currentAction) } }
+                        }
+                    }
+
+                    Label { text: qsTr("Presets"); font.bold: true; font.pointSize: 12 }
+                    RowLayout {
+                        width: parent.width
+                        AutoResizingComboBox { id: kbmPresetCombo; Layout.fillWidth: true; model: StreamingPreferences.controllerKbmPresetNames }
+                        Button { text: qsTr("Load"); enabled: kbmPresetCombo.currentIndex >= 0; onClicked: StreamingPreferences.loadControllerKbmPreset(kbmPresetCombo.currentIndex) }
+                        Button { text: qsTr("Delete"); enabled: kbmPresetCombo.currentIndex >= 0; onClicked: StreamingPreferences.deleteControllerKbmPreset(kbmPresetCombo.currentIndex) }
+                    }
+                    RowLayout {
+                        Button { text: qsTr("Save new"); onClicked: presetNameDialog.open() }
+                        Button { text: qsTr("Import"); onClicked: presetImportDialog.open() }
+                        Button { text: qsTr("Export"); enabled: kbmPresetCombo.currentIndex >= 0; onClicked: presetExportDialog.open() }
+                        Button { text: qsTr("Reset mappings"); onClicked: StreamingPreferences.resetControllerKbmMappings() }
+                    }
+                }
+
+                NavigableDialog {
+                    id: mappingDialog
+                    title: qsTr("Assign controller action")
+                    standardButtons: Dialog.Ok | Dialog.Cancel
+                    property string sourceId: ""
+                    property bool axisSource: false
+                    function openForAction(action) {
+                        actionCombo.currentIndex = 0
+                        var values = axisSource ? ["", "mouse_move", "scroll", "basic_wasd", "basic_arrows"] :
+                                                ["", "keyboard", "mouse_left", "mouse_right", "mouse_middle", "mouse_back", "mouse_forward", "wheel_up", "wheel_down", "directed_flick"]
+                        var candidate = action.indexOf("key:") === 0 ? "keyboard" : action.indexOf("directed_flick:") === 0 ? "directed_flick" : action
+                        actionCombo.currentIndex = Math.max(0, values.indexOf(candidate)); open()
+                    }
+                    onAccepted: {
+                        var values = axisSource ? ["", "mouse_move", "scroll", "basic_wasd", "basic_arrows"] :
+                                                ["", "keyboard", "mouse_left", "mouse_right", "mouse_middle", "mouse_back", "mouse_forward", "wheel_up", "wheel_down", "directed_flick"]
+                        var action = values[actionCombo.currentIndex]
+                        if (action === "keyboard") { keyboardCaptureDialog.sourceId = sourceId; keyboardCaptureDialog.open() }
+                        else if (action === "directed_flick") { flickDialog.sourceId = sourceId; flickDialog.open() }
+                        else StreamingPreferences.setControllerKbmAction(sourceId, action)
+                    }
+
+                    ColumnLayout {
+                        spacing: 10
+
+                        Label { text: qsTr("Action") }
+                        AutoResizingComboBox {
+                            id: actionCombo
+                            maximumWidth: 420
+                            Layout.maximumWidth: 420
+                            model: mappingDialog.axisSource ?
+                                [qsTr("Unassigned"), qsTr("Mouse movement"), qsTr("Two-axis scrolling"), qsTr("Basic movement: WASD"), qsTr("Basic movement: arrow keys")] :
+                                [qsTr("Unassigned"), qsTr("Keyboard key"), qsTr("Left mouse button"), qsTr("Right mouse button"), qsTr("Middle mouse button"), qsTr("Mouse back button"), qsTr("Mouse forward button"), qsTr("Mouse wheel up"), qsTr("Mouse wheel down"), qsTr("Directed flick")]
+                        }
+                    }
+                }
+
+                NavigableDialog {
+                    id: keyboardCaptureDialog
+                    title: qsTr("Press a keyboard key or mouse control")
+                    closePolicy: Popup.NoAutoClose
+                    property string sourceId: ""
+                    onOpened: keyboardCaptureFocus.forceActiveFocus()
+
+                    Item {
+                        id: keyboardCaptureFocus
+                        implicitWidth: 420
+                        implicitHeight: 120
+                        focus: true
+                        Keys.onPressed: function(event) {
+                            if (event.nativeVirtualKey > 0) {
+                                StreamingPreferences.setControllerKbmAction(keyboardCaptureDialog.sourceId, "key:" + event.nativeVirtualKey)
+                                keyboardCaptureDialog.close()
+                                event.accepted = true
+                            }
+                        }
+                        Label {
+                            anchors.centerIn: parent
+                            width: parent.width
+                            wrapMode: Text.Wrap
+                            horizontalAlignment: Text.AlignHCenter
+                            text: qsTr("Press a key, mouse button, or move the mouse wheel")
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.AllButtons
+                            onPressed: function(mouse) {
+                                var action = mouse.button === Qt.LeftButton ? "mouse_left" : mouse.button === Qt.RightButton ? "mouse_right" : mouse.button === Qt.MiddleButton ? "mouse_middle" : mouse.button === Qt.BackButton ? "mouse_back" : "mouse_forward"
+                                StreamingPreferences.setControllerKbmAction(keyboardCaptureDialog.sourceId, action)
+                                keyboardCaptureDialog.close()
+                            }
+                            onWheel: function(wheel) {
+                                StreamingPreferences.setControllerKbmAction(keyboardCaptureDialog.sourceId, wheel.angleDelta.y >= 0 ? "wheel_up" : "wheel_down")
+                                keyboardCaptureDialog.close()
+                            }
+                        }
+                    }
+                }
+
+                NavigableDialog {
+                    id: flickDialog
+                    title: qsTr("Directed flick")
+                    standardButtons: Dialog.Ok | Dialog.Cancel
+                    property string sourceId: ""
+                    onAccepted: StreamingPreferences.setControllerKbmAction(sourceId, "directed_flick:" + ["left","right","up","down"][flickDirection.currentIndex] + ":" + flickDistance.value)
+
+                    RowLayout {
+                        AutoResizingComboBox {
+                            id: flickDirection
+                            maximumWidth: 200
+                            Layout.maximumWidth: 200
+                            model: [qsTr("Left"), qsTr("Right"), qsTr("Up"), qsTr("Down")]
+                        }
+                        SpinBox { id: flickDistance; from: 50; to: 4000; value: 900; stepSize: 50 }
+                    }
+                }
+
+                NavigableDialog {
+                    id: presetNameDialog
+                    title: qsTr("Save preset")
+                    standardButtons: Dialog.Save | Dialog.Cancel
+                    onOpened: presetName.forceActiveFocus()
+                    onAccepted: { StreamingPreferences.saveControllerKbmPreset(presetName.text); presetName.text = "" }
+
+                    ColumnLayout {
+                        TextField {
+                            id: presetName
+                            Layout.minimumWidth: 320
+                            placeholderText: qsTr("Preset name")
+                        }
+                    }
+                }
+
+                FileDialog { id: presetImportDialog; title: qsTr("Import preset"); nameFilters: [qsTr("JSON preset (*.json)")]; fileMode: FileDialog.OpenFile; onAccepted: StreamingPreferences.importControllerKbmPreset(selectedFile) }
+                FileDialog { id: presetExportDialog; title: qsTr("Export preset"); nameFilters: [qsTr("JSON preset (*.json)")]; fileMode: FileDialog.SaveFile; defaultSuffix: "json"; onAccepted: StreamingPreferences.exportControllerKbmPreset(kbmPresetCombo.currentIndex, selectedFile) }
             }
         }
 
@@ -2213,6 +2774,7 @@ Flickable {
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Allows Moonlight to capture gamepad inputs even if it's not the current window in focus")
                 }
+
             }
         }
 
