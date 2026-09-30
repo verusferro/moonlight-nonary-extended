@@ -52,7 +52,7 @@ static uint32_t apolloExtendedEmulationCaps(StreamingPreferences::ControllerEmul
     else if (SDL_GameControllerGetType(controller) == SDL_CONTROLLER_TYPE_PS5) mode = APOLLO_EXTENDED_EMULATION_DS5;
     else if (type == LI_CTYPE_PS) mode = APOLLO_EXTENDED_EMULATION_DS4;
     else if (type == LI_CTYPE_XBOX) mode = APOLLO_EXTENDED_EMULATION_XBOX;
-    return APOLLO_EXTENDED_EMULATION_MAGIC | static_cast<uint32_t>(mode << 8);
+    return mode == 0 ? 0 : APOLLO_EXTENDED_EMULATION_MAGIC | static_cast<uint32_t>(mode << 8);
 }
 
 static bool sendDualSenseEffect(SDL_GameController* controller, const uint8_t* effect)
@@ -1355,8 +1355,10 @@ void SdlInputHandler::sendControllerArrival(GamepadState* state)
     if (state->hapticsAttached) capabilities |= LI_CCAP_HAPTICS_PCM;
     // Under the Apollo magic, bits 8-9 are the emulation mode; a dual-touchpad
     // pad's LI_CCAP_DUAL_TOUCHPAD would otherwise turn a DS4 request into DS5.
-    capabilities = (capabilities & ~APOLLO_EXTENDED_EMULATION_MODE_MASK) |
-                   apolloExtendedEmulationCaps(m_ControllerEmulationMode, state->controller, type);
+    const uint32_t emulationCaps = apolloExtendedEmulationCaps(m_ControllerEmulationMode, state->controller, type);
+    if (emulationCaps != 0) {
+        capabilities = (capabilities & ~APOLLO_EXTENDED_EMULATION_MODE_MASK) | emulationCaps;
+    }
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                 "Sending controller arrival: player %d type %u caps 0x%x buttons 0x%x",
