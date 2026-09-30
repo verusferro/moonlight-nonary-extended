@@ -20,6 +20,5 @@
   </Target>
   <ItemGroup>
     <PackageReference Include="WixToolset.Firewall.wixext" Version="7.0.0" />
-    <PackageReference Include="WixToolset.Util.wixext" Version="7.0.0" />
   </ItemGroup>
 </Project>

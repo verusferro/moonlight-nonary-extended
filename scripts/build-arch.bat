@@ -142,15 +142,22 @@ if /I "%VC_ARCH%" NEQ "%PROCESSOR_ARCHITECTURE%" (
     set VC_ARCH=%PROCESSOR_ARCHITECTURE%_%VC_ARCH%
 )
 
-rem Find Visual Studio and run vcvarsall.bat
-set VSWHERE="%SOURCE_ROOT%\scripts\vswhere.exe"
-for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -property installationPath`) do (
-    call "%%i\VC\Auxiliary\Build\vcvarsall.bat" %VC_ARCH%
+rem Find Visual Studio and run vcvarsall.bat.
+rem Wrapper may set VCVARSALL / VC_REDIST_DLL_PATH to pin BuildTools (vswhere -latest omits it).
+if not defined VSWHERE set VSWHERE="%SOURCE_ROOT%\scripts\vswhere.exe"
+if defined VCVARSALL (
+    call "%VCVARSALL%" %VC_ARCH%
+) else (
+    for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -property installationPath`) do (
+        call "%%i\VC\Auxiliary\Build\vcvarsall.bat" %VC_ARCH%
+    )
 )
 if !ERRORLEVEL! NEQ 0 goto Error
 
-rem Find VC redistributable DLLs
-for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -find VC\Redist\MSVC\*\%ARCH%\Microsoft.VC*.CRT`) do set VC_REDIST_DLL_PATH=%%i
+rem Find VC redistributable DLLs unless the wrapper already pinned them
+if not defined VC_REDIST_DLL_PATH (
+    for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -find VC\Redist\MSVC\*\%ARCH%\Microsoft.VC*.CRT`) do set VC_REDIST_DLL_PATH=%%i
+)
 
 echo Cleaning output directories
 rmdir /s /q %DEPLOY_FOLDER%
@@ -216,6 +223,12 @@ echo Copying DLL dependencies
 copy %SOURCE_ROOT%\libs\windows\lib\%ARCH%\*.dll %DEPLOY_FOLDER%
 if !ERRORLEVEL! NEQ 0 goto Error
 
+rem Fail-fast: x64 packages must ship the source-pinned DualSense SDL3.dll, never stock.
+if /I "%ARCH%" EQU "x64" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%SOURCE_ROOT%\scripts\port-build.ps1" check-sdl "%DEPLOY_FOLDER%\SDL3.dll"
+    if !ERRORLEVEL! NEQ 0 goto Error
+)
+
 echo Copying AntiHooking.dll
 copy %BUILD_FOLDER%\AntiHooking\%BUILD_CONFIG%\AntiHooking.dll %DEPLOY_FOLDER%
 if !ERRORLEVEL! NEQ 0 goto Error
@@ -274,6 +287,11 @@ if "%ML_SYMBOL_STORE%" NEQ "" (
     symstore add /r /f %BUILD_FOLDER%\app\%BUILD_CONFIG%\Moonlight.exe /s %ML_SYMBOL_STORE% /t Moonlight
     if !ERRORLEVEL! NEQ 0 goto Error
 )
+
+echo Copying licenses and source provenance into deploy
+rem Must run before WiX harvest and ZIP so MSI and portable both get resources\licenses
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SOURCE_ROOT%\scripts\port-build.ps1" licenses "%SOURCE_ROOT%" "%DEPLOY_FOLDER%"
+if !ERRORLEVEL! NEQ 0 goto Error
 
 echo Building MSI
 cmd /c "set VERSION= && msbuild -Restore %SOURCE_ROOT%\wix\Moonlight\Moonlight.wixproj /p:Configuration=%BUILD_CONFIG% /p:Platform=%ARCH% /p:MSBuildProjectExtensionsPath=%BUILD_FOLDER%\"

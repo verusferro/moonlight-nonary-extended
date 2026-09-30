@@ -1,0 +1,49 @@
+Moonlight Nonary Extended 6.1.0-vrr18.1 (file/MSI 6.1.18.1)
+Product identity: Moonlight Nonary Extended
+
+This resources/licenses tree is copied into the portable ZIP and the MSI
+before WiX harvest and archive. Upstream license texts under this folder
+are unmodified copies of the files at the pins below.
+
+In-tree licenses (copied from the Nonary tree at pack time):
+- Moonlight/Nonary: GPL-3.0 -> Moonlight/LICENSE
+- moonlight-common-c: GPL-3.0 -> moonlight-common-c/LICENSE.txt
+- qmdnsengine: MIT -> qmdnsengine/LICENSE.txt
+- h264bitstream: LGPL-2.1 -> h264bitstream/LICENSE
+- SDL_GameControllerDB: zlib -> SDL_GameControllerDB/LICENSE
+- enet (common-c): MIT -> enet/LICENSE
+- nanors (common-c): MIT -> nanors/LICENSE
+
+Shipped DualSense SDL3.dll (not stock moonlight-qt-deps v8 SDL):
+- License: zlib -> SDL3/LICENSE.txt
+- Source: libsdl-org/SDL release-3.4.12 (f87239e71e42da91ca317a12eefb82cfbf3393eb)
+  plus the DualSense patches in sdl-patches/
+
+Qt 6.11.1:
+- Texts: qt/ from qt/qtbase tag v6.11.1 LICENSES/ (unmodified)
+  LGPL-3.0-only, LGPL-2.1-or-later, GPL-3.0-only, GPL-2.0-only,
+  Qt-GPL-exception-1.0, LicenseRef-Qt-Commercial
+- Source: https://github.com/qt/qtbase/tree/v6.11.1/LICENSES
+
+moonlight-qt-deps v8 (https://github.com/moonlight-stream/moonlight-qt-deps/tree/v8):
+- Tag tree: 2b08b5fe858c9057766f0e66daa1650c1aecc48b
+- The release zips are include/ and lib/ only (no LICENSE/COPYING/NOTICE files).
+  Notices here are fetched from the v8 submodule pins, not from the zips.
+
+v8 submodule pins and license files:
+- FFmpeg 239f2c733de417201d7ad3b3b8b0d9b63285b2b1
+  LICENSE.md, COPYING.LGPLv2.1, COPYING.LGPLv3, COPYING.GPLv2, COPYING.GPLv3
+  v8 build-ffmpeg-windows.sh does not pass --enable-gpl (LGPL build).
+- openssl aae016bfd52fcad2bc9657c2c782cfdf73b1ed5f  LICENSE.txt (Apache-2.0)
+- opus ddbe48383984d56acd9e1ab6a090c54ca6b735a6  COPYING (BSD)
+- dav1d b546257f770768b2c88258c533da38b91a06f737  COPYING (BSD-2-Clause)
+- libplacebo 2d0979fb54e025e904c7372666fffbf5dae40f66  LICENSE (LGPL-2.1)
+- SDL_ttf a883e490e30fb44a5336ea3dcb990c6982c5216f  LICENSE.txt (zlib)
+- sdl2-compat a53b6ad90ecd2d0ccfe01d5cfd2059793acf8c12  LICENSE.txt (zlib)
+- discord-rpc 7bcf3b3fdd02d4d5072971ef1d5b4e6dd3a765dc (cgutman fork)  LICENSE (MIT)
+- Detours 9764cebcb1a75940e68fa83d6730ffaf0f669401  LICENSE.md (MIT)
+- SDL stock pin f87239e71e42da91ca317a12eefb82cfbf3393eb is not the shipped DLL;
+  DualSense SDL3/LICENSE.txt is packaged instead.
+
+Donor DualSense client work: Taveszfito/moonlight-extended aee77e490f85e78b6d5bde68f3c3309fdd5063cc
+Base: Nonary/moonlight-qt release/6.1.0-vrr18 (v6.1.0-vrr18) 1ad5848bd2190ab9dd9eea00d4730740d530ec29

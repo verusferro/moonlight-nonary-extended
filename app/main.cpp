@@ -452,15 +452,14 @@ int main(int argc, char *argv[])
 
     SDL_SetMainReady();
 
-    // Set the app version for the QCommandLineParser's showVersion() command
+    // Isolated product identity. QSettings/AppData/cache paths are derived
+    // from these; do not reuse stock Moonlight org/app names.
+    // Display VERSION_STR is 6.1.0-vrr18.1 (app.pro). File/MSI version is
+    // numeric 6.1.18.1 from app/version.txt (qmake VERSION).
     QCoreApplication::setApplicationVersion(VERSION_STR);
-
-    // Set these here to allow us to use the default QSettings constructor.
-    // These also ensure that our cache directory is named correctly. As such,
-    // it is critical that these be called before Path::initialize().
-    QCoreApplication::setOrganizationName("Moonlight Game Streaming Project");
-    QCoreApplication::setOrganizationDomain("moonlight-stream.com");
-    QCoreApplication::setApplicationName("Moonlight");
+    QCoreApplication::setOrganizationName(QStringLiteral("Moonlight Nonary Extended"));
+    QCoreApplication::setOrganizationDomain(QStringLiteral("moonlight-nonary-extended.local"));
+    QCoreApplication::setApplicationName(QStringLiteral("Moonlight Nonary Extended"));
 
     if (QFile(QDir::currentPath() + "/portable.dat").exists()) {
         QSettings::setDefaultFormat(QSettings::IniFormat);

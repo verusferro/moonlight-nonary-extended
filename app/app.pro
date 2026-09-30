@@ -38,7 +38,7 @@ DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs depr
 BASE_VERSION = $$cat(version.txt)
 MOONLIGHT_VERSION = $$(CI_VERSION)
 isEmpty(MOONLIGHT_VERSION) {
-    MOONLIGHT_VERSION = $$BASE_VERSION
+    MOONLIGHT_VERSION = 6.1.0-vrr18.1
 }
 
 win32 {
@@ -661,9 +661,9 @@ unix:!macx: {
 }
 win32 {
     RC_ICONS = moonlight.ico
-    QMAKE_TARGET_COMPANY = Moonlight Game Streaming Project
-    QMAKE_TARGET_DESCRIPTION = Moonlight Game Streaming Client
-    QMAKE_TARGET_PRODUCT = Moonlight
+    QMAKE_TARGET_COMPANY = Moonlight Nonary Extended
+    QMAKE_TARGET_DESCRIPTION = Moonlight Nonary Extended Game Streaming Client
+    QMAKE_TARGET_PRODUCT = Moonlight Nonary Extended
 
     CONFIG -= embed_manifest_exe
     QMAKE_LFLAGS += /MANIFEST:embed /MANIFESTINPUT:$${PWD}/Moonlight.exe.manifest
