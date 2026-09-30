@@ -5,7 +5,12 @@
 
 #include "SDL_compat.h"
 #include "dualsensetriggers.h"
+#include "chordtracker.h"
 
+#include <QHash>
+#include <QSet>
+
+class SdlInputHandler;
 
 struct GamepadState {
     SDL_GameController* controller;
@@ -20,10 +25,19 @@ struct GamepadState {
 #endif
 
     SDL_TimerID mouseEmulationTimer;
+    SDL_TimerID kbmTimer;
+    SdlInputHandler* kbmOwner;
     uint32_t lastStartDownTime;
 
     bool clickpadButtonEmulationEnabled;
     bool emulatedClickpadButtonDown;
+    bool dualSenseBluetooth;
+    bool dualSenseHeadsetStateKnown;
+    bool dualSenseHeadsetConnected;
+    uint32_t lastDualSenseHeadsetPollTime;
+    bool batteryWarningShown;
+    int batteryPercentage;
+    int batteryState;
 
 #if SDL_VERSION_ATLEAST(2, 0, 14)
     uint8_t gyroReportPeriodMs;
@@ -39,6 +53,15 @@ struct GamepadState {
     short lsX, lsY;
     short rsX, rsY;
     unsigned char lt, rt;
+    float kbmMouseRemainderX, kbmMouseRemainderY;
+    float kbmScrollRemainderX, kbmScrollRemainderY;
+    bool kbmDirectional[16];
+    bool kbmTriggerDown[2];
+    uint32_t kbmTriggerRepeatAt[2];
+    short gyroStickX, gyroStickY;
+    float gyroStickFilteredX, gyroStickFilteredY;
+    ChordPadState chord;
+    bool gyroHoldActive;
 };
 
 
@@ -90,6 +113,8 @@ public:
 #endif
 
     void handleJoystickArrivalEvent(SDL_JoyDeviceEvent* event);
+
+    void pollDualSenseHeadsets();
 
     void sendText(QString& string);
 
@@ -177,6 +202,25 @@ private:
     static
     Uint32 mouseEmulationTimerCallback(Uint32 interval, void* param);
 
+    static Uint32 controllerKbmTimerCallback(Uint32 interval, void* param);
+    void pollControllerKbm(GamepadState* state);
+    void handleControllerKbmAction(GamepadState* state, const QString& source, bool pressed);
+    void releaseControllerKbmState(GamepadState* state);
+    void setControllerKbmKey(int virtualKey, bool pressed);
+    void setControllerKbmMouse(int button, bool pressed);
+    void updateControllerKbmStick(GamepadState* state, const QString& source, float x, float y, int slot);
+    QString controllerKbmSourceForButton(unsigned button) const;
+    void syncControllerKbmSettings();
+    void updateControllerKbmGyroHoldState(GamepadState* state);
+    void announceControllerAfterKbm(GamepadState* state);
+    void updateGyroRightStick(GamepadState* state, const float data[3]);
+    void applyChordRelease(GamepadState* state, uint32_t sdlButtonBits);
+    void resetControllerChord(GamepadState* state);
+    void resetAllControllerChords();
+    ChordMasks currentChordMasks() const;
+    void bindSelectedDualSenseAudio(GamepadState* state, bool bluetooth, const char* path);
+    void unbindSelectedDualSenseAudio(GamepadState* state);
+
     static
     Uint32 releaseLeftButtonTimerCallback(Uint32 interval, void* param);
 
@@ -192,6 +236,59 @@ private:
     bool m_SwapMouseButtons;
     bool m_ReverseScrollDirection;
     bool m_SwapFaceButtons;
+    bool m_GyroOverrideEnabled;
+    int m_GyroAxisSource[3];
+    bool m_GyroAxisInverted[3];
+    bool m_GyroAxisDisabled[3];
+    bool m_ControllerKbmMode;
+    int m_ControllerKbmStickSpeed;
+    bool m_ControllerKbmContinuous;
+    int m_ControllerKbmTriggerThreshold;
+    QString m_ControllerKbmTriggerBehavior;
+    int m_ControllerKbmTriggerRepeatRate;
+    int m_ControllerKbmTriggerThresholds[2];
+    QString m_ControllerKbmTriggerBehaviors[2];
+    int m_ControllerKbmTriggerRepeatRates[2];
+    QHash<QString, QString> m_ControllerKbmMappings;
+    QHash<int, int> m_ControllerKbmKeyRefs;
+    QHash<int, int> m_ControllerKbmMouseRefs;
+    char m_ControllerKbmModifiers;
+    uint32_t m_ControllerKbmShortcutMask;
+    bool m_ControllerKbmGyroEnabled;
+    bool m_ControllerKbmGyroHoldMode;
+    uint32_t m_ControllerKbmGyroActivationMask;
+    bool m_ControllerKbmGyroActivationTriggers[2];
+    bool m_ControllerKbmGyroPrecisionEnabled;
+    int m_ControllerKbmGyroPrecisionSensitivity;
+    uint32_t m_ControllerKbmGyroPrecisionMask;
+    bool m_ControllerKbmGyroPrecisionTriggers[2];
+    int m_ControllerKbmGyroSensitivity;
+    int m_ControllerKbmGyroAxisSensitivity[3];
+    bool m_ControllerKbmGyroAxisInverted[3];
+    uint32_t m_ControllerKbmGyroShortcutMask;
+    bool m_TriggerOverrideEnabled;
+    int m_TriggerOverrideThresholds[2];
+    float m_ControllerKbmGyroRemainderX;
+    float m_ControllerKbmGyroRemainderY;
+    uint32_t m_ControllerKbmLastGyroTime;
+    int m_QuickMenuKeyboardKey;
+    int m_QuickMenuKeyboardModifiers;
+    bool m_QuickMenuKeyboardLatched;
+    bool m_MicrophoneMuteKeyboardLatched;
+    bool m_GyroStickEnabled;
+    int m_GyroStickSensitivity;
+    int m_GyroStickAxisSensitivity[3];
+    bool m_GyroStickAxisInverted[3];
+    bool m_GyroStickSmoothing;
+    int m_GyroStickDeadzone;
+    uint32_t m_GyroStickShortcutMask;
+    bool m_GyroStickHoldMode;
+    uint32_t m_GyroStickActivationMask;
+    bool m_GyroStickActivationTriggers[2];
+    bool m_GyroStickPrecisionEnabled;
+    int m_GyroStickPrecisionSensitivity;
+    uint32_t m_GyroStickPrecisionMask;
+    bool m_GyroStickPrecisionTriggers[2];
 
     bool m_MouseWasInVideoRegion;
     bool m_PendingMouseButtonsAllUpOnVideoRegionLeave;
@@ -207,6 +304,9 @@ private:
     QString m_OldIgnoreDevicesExcept;
     QStringList m_IgnoreDeviceGuids;
     StreamingPreferences::CaptureSysKeysMode m_CaptureSystemKeysMode;
+    StreamingPreferences::ControllerEmulationMode m_ControllerEmulationMode;
+    StreamingPreferences::DualSenseAudioMode m_DualSenseAudioMode;
+    int m_SelectedDualSenseAudioIndex;
     int m_MouseCursorCapturedVisibilityState;
 
     struct {

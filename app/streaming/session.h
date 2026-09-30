@@ -12,6 +12,8 @@
 #include "video/overlaymanager.h"
 #include "diagnostics/diagnosticcapture.h"
 
+class MicCapture;
+
 class SupportedVideoFormatList : public QList<int>
 {
 public:
@@ -109,6 +111,7 @@ public:
     Q_INVOKABLE bool initialize(QQuickWindow* qtWindow);
     Q_INVOKABLE void start();
     Q_INVOKABLE void interrupt();
+    Q_INVOKABLE void handleStreamQuickAction(const QString& action);
     Q_PROPERTY(QStringList launchWarnings MEMBER m_LaunchWarnings NOTIFY launchWarningsChanged);
 
     static
@@ -137,6 +140,8 @@ public:
     QString vrrCalibrationContext() const;
 
     void flushWindowEvents();
+
+    void startMicrophoneCapture();
 
     void setShouldExit(bool quitHostApp = false);
 
@@ -185,6 +190,10 @@ private:
     void toggleFullscreen();
 
     void notifyMouseEmulationMode(bool enabled);
+    void notifyMicrophoneMute(bool muted);
+    void notifyControllerKbmGyro(bool enabled);
+    void notifyGyroStick(bool enabled);
+    void notifyControllerBatteryLow(int percentage);
 
     void updateOptimalWindowDisplayMode();
 
@@ -245,6 +254,11 @@ private:
     void clSetAdaptiveTriggers(uint16_t controllerNumber, uint8_t eventFlags, uint8_t typeLeft, uint8_t typeRight, uint8_t *left, uint8_t *right);
 
     static
+    void clDualSenseAudio(uint16_t controllerNumber, uint16_t sequence,
+                          uint16_t frameCount, uint8_t channels, uint8_t flags,
+                          uint8_t *pcm, uint16_t pcmLength);
+
+    static
     int arInit(int audioConfiguration,
                const POPUS_MULTISTREAM_CONFIGURATION opusConfig,
                void* arContext, int arFlags);
@@ -299,9 +313,11 @@ private:
     bool m_UnexpectedTermination;
     SdlInputHandler* m_InputHandler;
     int m_MouseEmulationRefCount;
+    uint32_t m_MicrophoneOverlayGeneration = 0;
     int m_FlushingWindowEventsRef;
     QStringList m_LaunchWarnings;
     bool m_ShouldExit;
+    bool m_QuickMenuQuitHostApp;
 
     bool m_AsyncConnectionSuccess;
     int m_PortTestResults;
@@ -313,6 +329,8 @@ private:
 
     OpusMSDecoder* m_OpusDecoder;
     IAudioRenderer* m_AudioRenderer;
+    MicCapture* m_MicCapture;
+    bool m_MicCaptureAttempted;
     OPUS_MULTISTREAM_CONFIGURATION m_ActiveAudioConfig;
     OPUS_MULTISTREAM_CONFIGURATION m_OriginalAudioConfig;
     int m_AudioSampleCount;

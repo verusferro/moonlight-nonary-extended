@@ -3,6 +3,9 @@
 #include <QSysInfo>
 #include <QDir>
 #include "session.h"
+#include "backend/nvhttp.h"
+#include <QGuiApplication>
+#include <QClipboard>
 #include "settings/streamingpreferences.h"
 #include "streaming/streamutils.h"
 #include "streaming/vrrratepolicy.h"
@@ -47,6 +50,13 @@
 #include <QGuiApplication>
 #include <QCursor>
 #include <QScreen>
+#include <QTimer>
+#include <QProcess>
+#include <QSettings>
+#include <QThread>
+#include <QFileInfo>
+#include "streaming/audio/dualsenseaudio.h"
+#include "streaming/audio/miccapture.h"
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QQuickOpenGLUtils>
@@ -69,10 +79,11 @@ CONNECTION_LISTENER_CALLBACKS Session::k_ConnCallbacks = {
     Session::clSetControllerLED,
     Session::clSetAdaptiveTriggers,
 #if defined(Q_OS_LINUX) && SDL_VERSION_ATLEAST(2, 24, 0)
-    DualSenseHaptics::receive
+    DualSenseHaptics::receive,
 #else
-    nullptr
+    nullptr,
 #endif
+    Session::clDualSenseAudio
 };
 
 Session* Session::s_ActiveSession;
@@ -272,9 +283,24 @@ void Session::clSetAdaptiveTriggers(uint16_t controllerNumber, uint8_t eventFlag
     DualSenseOutputReport *state = (DualSenseOutputReport *) SDL_malloc(sizeof(DualSenseOutputReport));
     if (!state) return;
     *state = makeDualSenseTriggerReport(eventFlags, typeLeft, typeRight, left, right);
+    // Apollo Extended carries the five-bit player LED mask in left[0] when
+    // event flag 0x80 is set. Keep it in the native DualSense fields; the BT
+    // path consumes these explicitly and the USB path remains unchanged.
+    if ((eventFlags & 0x80) != 0 && left != nullptr) {
+        state->validFlag2 = 0x01;
+        state->playerLeds = left[0] & 0x1f;
+    }
 
     setControllerLEDEvent.user.data2 = (void *) state;
     if (SDL_PushEvent(&setControllerLEDEvent) <= 0) SDL_free(state);
+}
+
+void Session::clDualSenseAudio(uint16_t controllerNumber, uint16_t sequence,
+                               uint16_t frameCount, uint8_t channels, uint8_t flags,
+                               uint8_t *pcm, uint16_t pcmLength)
+{
+    DualSenseAudioRenderer::instance().receive(controllerNumber, sequence, frameCount,
+                                                channels, flags, pcm, pcmLength);
 }
 
 bool Session::chooseDecoder(StreamingPreferences::VideoDecoderSelection vds,
@@ -628,17 +654,65 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
       m_MouseEmulationRefCount(0),
       m_FlushingWindowEventsRef(0),
       m_ShouldExit(false),
+      m_QuickMenuQuitHostApp(false),
       m_AsyncConnectionSuccess(false),
       m_PortTestResults(0),
       m_OpusDecoder(nullptr),
       m_AudioRenderer(nullptr),
+      m_MicCapture(nullptr),
+      m_MicCaptureAttempted(false),
       m_AudioSampleCount(0),
       m_DropAudioEndTime(0)
 {
+    DualSenseAudioRenderer::instance().configure(m_Preferences->dualSenseAudioMode);
+    DualSenseAudioRenderer::instance().setVolume(m_Preferences->dualSenseControllerVolume);
+    m_LaunchWarnings.append(tr("Extended Quick Menu: press Ctrl + Alt + Shift + A during streaming."));
+}
+
+void Session::handleStreamQuickAction(const QString& action)
+{
+        if (action == QStringLiteral("disconnect")) interrupt();
+        else if (action == QStringLiteral("quit")) {
+            m_QuickMenuQuitHostApp = true;
+            interrupt();
+        }
+        else if (action == QStringLiteral("performance")) {
+            const bool enabled = !m_OverlayManager.isOverlayEnabled(Overlay::OverlayDebug);
+            m_OverlayManager.setOverlayState(Overlay::OverlayDebug, enabled);
+        }
+        else if (action == QStringLiteral("uploadClipboard")) {
+            try { NvHTTP(m_Computer).sendClipboard(QGuiApplication::clipboard()->text());
+                m_OverlayManager.updateOverlayText(Overlay::OverlayNotification, "Clipboard uploaded"); }
+            catch (...) { m_OverlayManager.updateOverlayText(Overlay::OverlayNotification, "Clipboard upload failed"); }
+            m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
+            const uint32_t generation = ++m_MicrophoneOverlayGeneration;
+            QTimer::singleShot(1600, this, [this, generation] {
+                if (generation == m_MicrophoneOverlayGeneration)
+                    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
+            });
+        }
+        else if (action == QStringLiteral("fetchClipboard")) {
+            try { QGuiApplication::clipboard()->setText(NvHTTP(m_Computer).getClipboard());
+                m_OverlayManager.updateOverlayText(Overlay::OverlayNotification, "Clipboard fetched"); }
+            catch (...) { m_OverlayManager.updateOverlayText(Overlay::OverlayNotification, "Clipboard fetch failed"); }
+            m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
+            const uint32_t generation = ++m_MicrophoneOverlayGeneration;
+            QTimer::singleShot(1600, this, [this, generation] {
+                if (generation == m_MicrophoneOverlayGeneration)
+                    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
+            });
+        }
+        else if (action == QStringLiteral("microphone")) {
+            delete m_MicCapture; m_MicCapture = nullptr; m_MicCaptureAttempted = false;
+            if (m_Preferences->micCapture) startMicrophoneCapture();
+        }
+        else if (action == QStringLiteral("controllerVolume"))
+            DualSenseAudioRenderer::instance().setVolume(m_Preferences->dualSenseControllerVolume);
 }
 
 Session::~Session()
 {
+    DualSenseAudioRenderer::instance().close();
     // NB: This may not get destroyed for a long time! Don't put any non-trivial cleanup here.
     // Use Session::exec() or DeferredSessionCleanupTask instead.
 
@@ -1474,7 +1548,7 @@ private:
         // Only quit the running app if our session terminated gracefully
         bool shouldQuit =
                 !m_Session->m_UnexpectedTermination &&
-                m_Session->m_Preferences->quitAppAfter;
+                (m_Session->m_Preferences->quitAppAfter || m_Session->m_QuickMenuQuitHostApp);
 
         // Notify the UI
         if (shouldQuit) {
@@ -1943,8 +2017,76 @@ bool Session::startConnectionAsync()
         return false;
     }
 
+    if (m_Preferences->micCapture && m_Preferences->micDevice != "__dualsense__") {
+        startMicrophoneCapture();
+    }
+
     emit connectionStarted();
     return true;
+}
+
+void Session::notifyMicrophoneMute(bool muted)
+{
+    const uint32_t generation = ++m_MicrophoneOverlayGeneration;
+    m_OverlayManager.updateOverlayText(Overlay::OverlayNotification,
+                                       muted ? "Microphone muted" : "Microphone unmuted");
+    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
+
+    // Keep the existing in-stream status overlay brief. The QObject context
+    // automatically cancels this callback if the session is destroyed.
+    QTimer::singleShot(1600, this, [this, generation] {
+        if (generation == m_MicrophoneOverlayGeneration) {
+            m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
+        }
+    });
+}
+
+void Session::notifyControllerKbmGyro(bool enabled)
+{
+    const uint32_t generation = ++m_MicrophoneOverlayGeneration;
+    m_OverlayManager.updateOverlayText(Overlay::OverlayNotification,
+                                       enabled ? "Gyro mouse enabled" : "Gyro mouse disabled");
+    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
+    QTimer::singleShot(1600, this, [this, generation] {
+        if (generation == m_MicrophoneOverlayGeneration)
+            m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
+    });
+}
+
+void Session::notifyGyroStick(bool enabled)
+{
+    const uint32_t generation = ++m_MicrophoneOverlayGeneration;
+    m_OverlayManager.updateOverlayText(Overlay::OverlayNotification,
+                                       enabled ? "Gyro stick enabled" : "Gyro stick disabled");
+    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
+    QTimer::singleShot(1600, this, [this, generation] {
+        if (generation == m_MicrophoneOverlayGeneration) m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
+    });
+}
+
+void Session::notifyControllerBatteryLow(int percentage)
+{
+    const uint32_t generation = ++m_MicrophoneOverlayGeneration;
+    const QByteArray text = QStringLiteral("Controller battery low — %1%").arg(percentage).toUtf8();
+    m_OverlayManager.updateOverlayText(Overlay::OverlayNotification, text.constData());
+    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
+    QTimer::singleShot(2200, this, [this, generation] {
+        if (generation == m_MicrophoneOverlayGeneration) m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
+    });
+}
+
+void Session::startMicrophoneCapture()
+{
+    if (m_MicCaptureAttempted || !m_Preferences->micCapture) return;
+    m_MicCaptureAttempted = true;
+    m_MicCapture = new MicCapture();
+    m_MicCapture->setDeviceName(m_Preferences->micDevice.toStdString());
+    if (!m_MicCapture->start()) {
+        delete m_MicCapture;
+        m_MicCapture = nullptr;
+        m_MicCaptureAttempted = false;
+        emitLaunchWarning(tr("The selected microphone could not be opened. Streaming will continue without microphone passthrough."));
+    }
 }
 
 void Session::flushWindowEvents()
@@ -2010,6 +2152,31 @@ void Session::start()
             qWarning() << "Settings diagnostics not enabled:" << error;
         }
     }
+#ifdef Q_OS_WIN
+    if (m_Preferences->micCapture &&
+            m_Preferences->micDevice == "__dualsense__" &&
+            m_Preferences->stopSteamForDualSense) {
+        QSettings steamSettings(QStringLiteral("HKEY_CURRENT_USER\\Software\\Valve\\Steam"),
+                                QSettings::NativeFormat);
+        QString steamExe = steamSettings.value(QStringLiteral("SteamExe")).toString();
+        if (steamExe.isEmpty()) {
+            steamExe = QStringLiteral("C:/Program Files (x86)/Steam/steam.exe");
+        }
+        QProcess taskList;
+        taskList.start(QStringLiteral("tasklist.exe"),
+                       {QStringLiteral("/FI"), QStringLiteral("IMAGENAME eq steam.exe"),
+                        QStringLiteral("/NH")});
+        const bool taskListFinished = taskList.waitForFinished(1000);
+        const bool steamRunning = taskListFinished &&
+                taskList.readAllStandardOutput().toLower().contains("steam.exe");
+        if (steamRunning && QFileInfo::exists(steamExe)) {
+            QProcess::startDetached(steamExe, {QStringLiteral("-shutdown")});
+            // Give Steam Input time to release its shared HID handle before SDL
+            // enumerates and opens the physical DualSense.
+            QThread::msleep(1500);
+        }
+    }
+#endif
 
     // Initialize the gamepad code with our preferences
     // NB: m_InputHandler must be initialize before starting the connection.
@@ -2218,6 +2385,11 @@ void Session::exec()
     StreamUtils::enterAsyncLoggingMode();
 
     m_InputHandler->initializeControllers();
+    // initializeControllers() consumes the initial add events, so start a
+    // DualSense microphone here once transport classification has happened.
+    if (m_Preferences->micDevice == "__dualsense__") {
+        startMicrophoneCapture();
+    }
 
     // Hijack this thread to be the SDL main thread. We have to do this
     // because we want to suspend all Qt processing until the stream is over.
@@ -2237,6 +2409,7 @@ void Session::exec()
     };
 
     for (;;) {
+        m_InputHandler->pollDualSenseHeadsets();
 #if SDL_VERSION_ATLEAST(2, 0, 18) && !defined(STEAM_LINK)
         // SDL 2.0.18 has a proper wait event implementation that uses platform
         // support to block on events rather than polling on Windows, macOS, X11,
@@ -2247,7 +2420,7 @@ void Session::exec()
         // NB: This behavior was introduced in SDL 2.0.16, but had a few critical
         // issues that could cause indefinite timeouts, delayed joystick detection,
         // and other problems.
-        if (!SDL_WaitEventTimeout(&event, 1000)) {
+        if (!SDL_WaitEventTimeout(&event, 100)) {
             presence.runCallbacks();
             continue;
         }
@@ -2604,7 +2777,22 @@ void Session::exec()
 #endif
         case SDL_CONTROLLERDEVICEADDED:
         case SDL_CONTROLLERDEVICEREMOVED:
+            if (event.type == SDL_CONTROLLERDEVICEREMOVED &&
+                    m_Preferences->micDevice == "__dualsense__" &&
+                    m_MicCapture != nullptr) {
+                m_MicCapture->stop();
+                delete m_MicCapture;
+                m_MicCapture = nullptr;
+                m_MicCaptureAttempted = false;
+            }
             m_InputHandler->handleControllerDeviceEvent(&event.cdevice);
+            // DualSense transport classification happens while the controller-added
+            // event is handled. Start its microphone only afterwards, otherwise a BT
+            // controller is mistaken for a missing Windows capture endpoint.
+            if (event.type == SDL_CONTROLLERDEVICEADDED &&
+                    m_Preferences->micDevice == "__dualsense__") {
+                startMicrophoneCapture();
+            }
             break;
         case SDL_JOYDEVICEADDED:
             m_InputHandler->handleJoystickArrivalEvent(&event.jdevice);
@@ -2626,6 +2814,15 @@ void Session::exec()
     }
 
 DispatchDeferredCleanup:
+    if (m_MicCapture != nullptr) {
+        m_MicCapture->stop();
+        delete m_MicCapture;
+        m_MicCapture = nullptr;
+    }
+
+    // Release DualSense audio in true session cleanup, before controllers close.
+    DualSenseAudioRenderer::instance().close();
+
     // Switch back to synchronous logging mode
     StreamUtils::exitAsyncLoggingMode();
 

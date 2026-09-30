@@ -7,6 +7,8 @@ contains(CONFIG, tests) {
     SUBDIRS += vrr
     SUBDIRS += haptics
     SUBDIRS += pyrowave
+    SUBDIRS += shortcut
+    shortcut.file = $$PWD/shortcut/shortcut.pro
 } else {
     message(VRR tests are disabled; rerun qmake with CONFIG+=tests)
 }
