@@ -39,6 +39,8 @@
 #define APOLLO_EXTENDED_EMULATION_XBOX  1
 #define APOLLO_EXTENDED_EMULATION_DS4   2
 #define APOLLO_EXTENDED_EMULATION_DS5   3
+// The mode field (bits 8-9) overlaps LI_CCAP_DUAL_TOUCHPAD (0x100).
+#define APOLLO_EXTENDED_EMULATION_MODE_MASK 0x0300
 
 static uint32_t apolloExtendedEmulationCaps(StreamingPreferences::ControllerEmulationMode emulation,
                                             SDL_GameController* controller, uint8_t type)
@@ -1351,7 +1353,10 @@ void SdlInputHandler::sendControllerArrival(GamepadState* state)
     uint8_t type = moonlightControllerType(state->controller);
 
     if (state->hapticsAttached) capabilities |= LI_CCAP_HAPTICS_PCM;
-    capabilities |= apolloExtendedEmulationCaps(m_ControllerEmulationMode, state->controller, type);
+    // Under the Apollo magic, bits 8-9 are the emulation mode; a dual-touchpad
+    // pad's LI_CCAP_DUAL_TOUCHPAD would otherwise turn a DS4 request into DS5.
+    capabilities = (capabilities & ~APOLLO_EXTENDED_EMULATION_MODE_MASK) |
+                   apolloExtendedEmulationCaps(m_ControllerEmulationMode, state->controller, type);
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                 "Sending controller arrival: player %d type %u caps 0x%x buttons 0x%x",
