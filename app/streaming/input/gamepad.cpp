@@ -19,6 +19,9 @@
 // How long the Start button must be pressed to toggle mouse emulation
 #define MOUSE_EMULATION_LONG_PRESS_TIME 750
 
+// How long Start+Select must be held to toggle Xbox 360 emulation for that pad
+#define EMULATION_TOGGLE_LONG_PRESS_TIME 2000
+
 // How long between polling the gamepad to send virtual mouse input
 #define MOUSE_EMULATION_POLLING_INTERVAL 50
 
@@ -270,7 +273,8 @@ void SdlInputHandler::announceControllerAfterKbm(GamepadState* state)
     for (int i = 0; i < static_cast<int>(SDL_arraysize(k_ButtonMap)); ++i) {
         if (SDL_GameControllerHasButton(state->controller, static_cast<SDL_GameControllerButton>(i))) buttons |= k_ButtonMap[i];
     }
-    uint32_t capabilities = apolloExtendedEmulationCaps(m_ControllerEmulationMode, state->controller, type);
+    uint32_t capabilities = apolloExtendedEmulationCaps(state->xboxEmulationToggled ? StreamingPreferences::CEM_XBOX : m_ControllerEmulationMode,
+                                                        state->controller, type);
     if (SDL_GameControllerGetBindForAxis(state->controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT).bindType == SDL_CONTROLLER_BINDTYPE_AXIS ||
             SDL_GameControllerGetBindForAxis(state->controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT).bindType == SDL_CONTROLLER_BINDTYPE_AXIS)
         capabilities |= LI_CCAP_ANALOG_TRIGGERS;
@@ -1017,6 +1021,7 @@ void SdlInputHandler::handleControllerButtonEvent(SDL_ControllerButtonEvent* eve
 
         if (event->button == SDL_CONTROLLER_BUTTON_START) {
             state->lastStartDownTime = SDL_GetTicks();
+            state->emulationComboHeld = false;
         }
         else if (state->mouseEmulationTimer != 0) {
             if (event->button == SDL_CONTROLLER_BUTTON_A) {
@@ -1047,12 +1052,33 @@ void SdlInputHandler::handleControllerButtonEvent(SDL_ControllerButtonEvent* eve
                 LiSendHScrollEvent(-1);
             }
         }
+
+        if ((event->button == SDL_CONTROLLER_BUTTON_START || event->button == SDL_CONTROLLER_BUTTON_BACK) &&
+                (state->buttons & (PLAY_FLAG | BACK_FLAG)) == (PLAY_FLAG | BACK_FLAG)) {
+            state->emulationComboDownTime = SDL_GetTicks();
+            // Keep this Start hold from also toggling mouse emulation on release
+            state->emulationComboHeld = true;
+        }
     }
     else {
+        if ((event->button == SDL_CONTROLLER_BUTTON_START || event->button == SDL_CONTROLLER_BUTTON_BACK) &&
+                (state->buttons & (PLAY_FLAG | BACK_FLAG)) == (PLAY_FLAG | BACK_FLAG) &&
+                SDL_GetTicks() - state->emulationComboDownTime >= EMULATION_TOGGLE_LONG_PRESS_TIME) {
+            state->xboxEmulationToggled = !state->xboxEmulationToggled;
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                        "Xbox 360 emulation toggle for player %d: %s",
+                        state->index, state->xboxEmulationToggled ? "on" : "off");
+            // Remove, then re-announce: pads without an emulation request (Automatic
+            // on Nintendo/unknown types) are otherwise ignored as already allocated.
+            LiSendMultiControllerEvent(state->index, m_GamepadMask & ~(1 << state->index),
+                                       0, 0, 0, 0, 0, 0, 0);
+            sendControllerArrival(state);
+            Session::get()->notifyControllerEmulationToggle(state->xboxEmulationToggled);
+        }
         state->buttons &= ~k_ButtonMap[event->button];
 
         if (event->button == SDL_CONTROLLER_BUTTON_START) {
-            if (SDL_GetTicks() - state->lastStartDownTime > MOUSE_EMULATION_LONG_PRESS_TIME) {
+            if (!state->emulationComboHeld && SDL_GetTicks() - state->lastStartDownTime > MOUSE_EMULATION_LONG_PRESS_TIME) {
                 if (state->mouseEmulationTimer != 0) {
                     SDL_RemoveTimer(state->mouseEmulationTimer);
                     state->mouseEmulationTimer = 0;
@@ -1355,7 +1381,8 @@ void SdlInputHandler::sendControllerArrival(GamepadState* state)
     if (state->hapticsAttached) capabilities |= LI_CCAP_HAPTICS_PCM;
     // Under the Apollo magic, bits 8-9 are the emulation mode; a dual-touchpad
     // pad's LI_CCAP_DUAL_TOUCHPAD would otherwise turn a DS4 request into DS5.
-    const uint32_t emulationCaps = apolloExtendedEmulationCaps(m_ControllerEmulationMode, state->controller, type);
+    const uint32_t emulationCaps = apolloExtendedEmulationCaps(state->xboxEmulationToggled ? StreamingPreferences::CEM_XBOX : m_ControllerEmulationMode,
+                                                               state->controller, type);
     if (emulationCaps != 0) {
         capabilities = (capabilities & ~APOLLO_EXTENDED_EMULATION_MODE_MASK) | emulationCaps;
     }

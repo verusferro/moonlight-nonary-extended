@@ -2069,6 +2069,17 @@ void Session::notifyGyroStick(bool enabled)
     });
 }
 
+void Session::notifyControllerEmulationToggle(bool xbox)
+{
+    const uint32_t generation = ++m_MicrophoneOverlayGeneration;
+    m_OverlayManager.updateOverlayText(Overlay::OverlayNotification,
+                                       xbox ? "Controller emulation: Xbox 360" : "Controller emulation: default");
+    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
+    QTimer::singleShot(1600, this, [this, generation] {
+        if (generation == m_MicrophoneOverlayGeneration) m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
+    });
+}
+
 void Session::notifyControllerBatteryLow(int percentage)
 {
     const uint32_t generation = ++m_MicrophoneOverlayGeneration;

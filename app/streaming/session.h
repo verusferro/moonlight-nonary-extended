@@ -193,6 +193,7 @@ private:
     void notifyMicrophoneMute(bool muted);
     void notifyControllerKbmGyro(bool enabled);
     void notifyGyroStick(bool enabled);
+    void notifyControllerEmulationToggle(bool xbox);
     void notifyControllerBatteryLow(int percentage);
 
     void updateOptimalWindowDisplayMode();

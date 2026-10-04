@@ -28,6 +28,9 @@ struct GamepadState {
     SDL_TimerID kbmTimer;
     SdlInputHandler* kbmOwner;
     uint32_t lastStartDownTime;
+    uint32_t emulationComboDownTime;
+    bool emulationComboHeld;
+    bool xboxEmulationToggled;
 
     bool clickpadButtonEmulationEnabled;
     bool emulatedClickpadButtonDown;
