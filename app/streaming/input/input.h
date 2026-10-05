@@ -239,16 +239,9 @@ private:
     bool m_SwapMouseButtons;
     bool m_ReverseScrollDirection;
     bool m_SwapFaceButtons;
-    bool m_GyroOverrideEnabled;
-    int m_GyroAxisSource[3];
-    bool m_GyroAxisInverted[3];
-    bool m_GyroAxisDisabled[3];
     bool m_ControllerKbmMode;
     int m_ControllerKbmStickSpeed;
     bool m_ControllerKbmContinuous;
-    int m_ControllerKbmTriggerThreshold;
-    QString m_ControllerKbmTriggerBehavior;
-    int m_ControllerKbmTriggerRepeatRate;
     int m_ControllerKbmTriggerThresholds[2];
     QString m_ControllerKbmTriggerBehaviors[2];
     int m_ControllerKbmTriggerRepeatRates[2];
@@ -276,8 +269,8 @@ private:
     uint32_t m_ControllerKbmLastGyroTime;
     int m_QuickMenuKeyboardKey;
     int m_QuickMenuKeyboardModifiers;
-    bool m_QuickMenuKeyboardLatched;
     bool m_MicrophoneMuteKeyboardLatched;
+    Uint32 m_LastControllerKbmSettingsSync;
     bool m_GyroStickEnabled;
     int m_GyroStickSensitivity;
     int m_GyroStickAxisSensitivity[3];

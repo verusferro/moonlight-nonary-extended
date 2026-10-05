@@ -288,6 +288,12 @@ void SdlInputHandler::announceControllerAfterKbm(GamepadState* state)
 
 void SdlInputHandler::syncControllerKbmSettings()
 {
+    // Shared throttle: called from axis, button and sensor handlers.
+    const Uint32 now = SDL_GetTicks();
+    if (!SDL_TICKS_PASSED(now, m_LastControllerKbmSettingsSync + 100)) {
+        return;
+    }
+    m_LastControllerKbmSettingsSync = now;
     QSettings settings;
     const bool wasEnabled = m_ControllerKbmMode;
     const bool enabled = settings.value(QStringLiteral("controllerkbmmode"), false).toBool();
@@ -336,16 +342,6 @@ void SdlInputHandler::syncControllerKbmSettings()
     m_ControllerKbmGyroSensitivity = settings.value(QStringLiteral("controllerkbmgyrosensitivity"), 100).toInt();
     m_ControllerKbmGyroAxisSensitivity[0]=settings.value(QStringLiteral("controllerkbmgyroxsensitivity"),100).toInt(); m_ControllerKbmGyroAxisSensitivity[1]=settings.value(QStringLiteral("controllerkbmgyroysensitivity"),100).toInt(); m_ControllerKbmGyroAxisSensitivity[2]=settings.value(QStringLiteral("controllerkbmgyrozsensitivity"),100).toInt();
     m_ControllerKbmGyroAxisInverted[0]=settings.value(QStringLiteral("controllerkbmgyroxinverted"),false).toBool(); m_ControllerKbmGyroAxisInverted[1]=settings.value(QStringLiteral("controllerkbmgyroyinverted"),false).toBool(); m_ControllerKbmGyroAxisInverted[2]=settings.value(QStringLiteral("controllerkbmgyrozinverted"),false).toBool();
-    m_GyroOverrideEnabled = settings.value(QStringLiteral("gyrooverrideenabled"), false).toBool();
-    m_GyroAxisSource[0] = settings.value(QStringLiteral("gyroxsource"), 0).toInt();
-    m_GyroAxisSource[1] = settings.value(QStringLiteral("gyroysource"), 1).toInt();
-    m_GyroAxisSource[2] = settings.value(QStringLiteral("gyrozsource"), 2).toInt();
-    m_GyroAxisInverted[0] = settings.value(QStringLiteral("gyroxinverted"), false).toBool();
-    m_GyroAxisInverted[1] = settings.value(QStringLiteral("gyroyinverted"), false).toBool();
-    m_GyroAxisInverted[2] = settings.value(QStringLiteral("gyrozininverted"), false).toBool();
-    m_GyroAxisDisabled[0] = settings.value(QStringLiteral("gyroxdisabled"), false).toBool();
-    m_GyroAxisDisabled[1] = settings.value(QStringLiteral("gyroydisabled"), false).toBool();
-    m_GyroAxisDisabled[2] = settings.value(QStringLiteral("gyrozdisabled"), false).toBool();
     m_TriggerOverrideEnabled=settings.value(QStringLiteral("triggeroverrideenabled"),false).toBool(); m_TriggerOverrideThresholds[0]=settings.value(QStringLiteral("lefttriggeroverridethreshold"),50).toInt(); m_TriggerOverrideThresholds[1]=settings.value(QStringLiteral("righttriggeroverridethreshold"),50).toInt();
     m_GyroStickEnabled=settings.value(QStringLiteral("gyrostickenabled"),false).toBool(); m_GyroStickSensitivity=settings.value(QStringLiteral("gyrosticksensitivity"),100).toInt();
     m_GyroStickAxisSensitivity[0]=settings.value(QStringLiteral("gyrostickxsensitivity"),100).toInt();m_GyroStickAxisSensitivity[1]=settings.value(QStringLiteral("gyrostickysensitivity"),100).toInt();m_GyroStickAxisSensitivity[2]=settings.value(QStringLiteral("gyrostickzsensitivity"),100).toInt();
@@ -766,9 +762,9 @@ void SdlInputHandler::sendGamepadBatteryState(GamepadState* state, SDL_JoystickP
     state->batteryPercentage = batteryPercentage == LI_BATTERY_PERCENTAGE_UNKNOWN ? -1 : batteryPercentage;
     publishControllerStatus(state);
 
-    QSettings settings;
-    const bool warningEnabled = settings.value(QStringLiteral("controllerBatteryWarningEnabled"), true).toBool();
-    const int warningThreshold = settings.value(QStringLiteral("controllerBatteryWarningThreshold"), 10).toInt();
+    const auto* prefs = StreamingPreferences::get();
+    const bool warningEnabled = prefs->controllerBatteryWarningEnabled;
+    const int warningThreshold = prefs->controllerBatteryWarningThreshold;
     if (batteryState == LI_BATTERY_STATE_DISCHARGING && state->batteryPercentage >= 0) {
         if (warningEnabled && state->batteryPercentage <= warningThreshold && !state->batteryWarningShown) {
             state->batteryWarningShown = true;
@@ -1162,11 +1158,7 @@ void SdlInputHandler::handleControllerSensorEvent(SDL_ControllerSensorEvent* eve
 {
     // Sensor events can continue without any accompanying button/axis event.
     // Refresh here so Quick Menu gyro changes also take effect in a stationary stream.
-    static uint32_t lastSettingsSync = 0;
-    if (SDL_TICKS_PASSED(event->timestamp, lastSettingsSync + 100)) {
-        syncControllerKbmSettings();
-        lastSettingsSync = event->timestamp;
-    }
+    syncControllerKbmSettings();
     GamepadState* state = findStateForGamepad(event->which);
     if (state == NULL) {
         return;
