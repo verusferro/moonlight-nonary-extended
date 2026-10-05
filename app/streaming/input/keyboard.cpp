@@ -175,6 +175,35 @@ void SdlInputHandler::performSpecialKeyCombo(KeyCombo combo)
     }
 }
 
+// Returns the Qt::Key value for an SDL key symbol, or 0 if unmapped.
+static int sdlKeyToQtKey(SDL_Keycode sym)
+{
+    if (sym >= SDLK_a && sym <= SDLK_z) return sym - SDLK_a + 'A';
+    if (sym >= 0x20 && sym <= 0x7E) return sym; // digits, space, punctuation
+    if (sym >= SDLK_F1 && sym <= SDLK_F12) return Qt::Key_F1 + (sym - SDLK_F1);
+    if (sym >= SDLK_F13 && sym <= SDLK_F24) return Qt::Key_F13 + (sym - SDLK_F13);
+    switch (sym) {
+    case SDLK_ESCAPE: return Qt::Key_Escape;
+    case SDLK_TAB: return Qt::Key_Tab;
+    case SDLK_BACKSPACE: return Qt::Key_Backspace;
+    case SDLK_RETURN: return Qt::Key_Return;
+    case SDLK_KP_ENTER: return Qt::Key_Enter;
+    case SDLK_INSERT: return Qt::Key_Insert;
+    case SDLK_DELETE: return Qt::Key_Delete;
+    case SDLK_HOME: return Qt::Key_Home;
+    case SDLK_END: return Qt::Key_End;
+    case SDLK_PAGEUP: return Qt::Key_PageUp;
+    case SDLK_PAGEDOWN: return Qt::Key_PageDown;
+    case SDLK_LEFT: return Qt::Key_Left;
+    case SDLK_UP: return Qt::Key_Up;
+    case SDLK_RIGHT: return Qt::Key_Right;
+    case SDLK_DOWN: return Qt::Key_Down;
+    case SDLK_PRINTSCREEN: return Qt::Key_Print;
+    case SDLK_PAUSE: return Qt::Key_Pause;
+    default: return 0;
+    }
+}
+
 void SdlInputHandler::handleKeyEvent(SDL_KeyboardEvent* event)
 {
     short keyCode;
@@ -187,21 +216,17 @@ void SdlInputHandler::handleKeyEvent(SDL_KeyboardEvent* event)
         return;
     }
 
-    // The Extended Quick Menu shortcut must be handled before forwarding the
-    // key to the host. Normalize alphabetic SDL key symbols to Windows/Qt VK
-    // values, which are stored by the settings capture dialog.
-    int shortcutKey = static_cast<int>(event->keysym.sym);
-    if (shortcutKey >= SDLK_a && shortcutKey <= SDLK_z) {
-        shortcutKey = shortcutKey - SDLK_a + 'A';
-    }
+    // The Extended shortcuts are stored as Qt key codes (as captured by the
+    // settings dialogs); convert the SDL key symbol for comparison.
+    const int shortcutKey = sdlKeyToQtKey(event->keysym.sym);
     int shortcutModifiers = 0;
     if (event->keysym.mod & KMOD_CTRL) shortcutModifiers |= 0x01;
     if (event->keysym.mod & KMOD_ALT) shortcutModifiers |= 0x02;
     if (event->keysym.mod & KMOD_SHIFT) shortcutModifiers |= 0x04;
     if (event->keysym.mod & KMOD_GUI) shortcutModifiers |= 0x08;
     const auto* quickMenuPrefs = StreamingPreferences::get();
-    if (shortcutKey == quickMenuPrefs->microphoneMuteKeyboardKey &&
-            (shortcutModifiers & quickMenuPrefs->microphoneMuteKeyboardModifiers) == quickMenuPrefs->microphoneMuteKeyboardModifiers) {
+    if (shortcutKey != 0 && shortcutKey == quickMenuPrefs->microphoneMuteKeyboardKey &&
+            shortcutModifiers == quickMenuPrefs->microphoneMuteKeyboardModifiers) {
         if (event->state == SDL_PRESSED && !m_MicrophoneMuteKeyboardLatched) {
             m_MicrophoneMuteKeyboardLatched = true;
             const bool muted = !MicCapture::isMuted();
@@ -215,8 +240,8 @@ void SdlInputHandler::handleKeyEvent(SDL_KeyboardEvent* event)
     }
     m_QuickMenuKeyboardKey = quickMenuPrefs->quickMenuKeyboardKey;
     m_QuickMenuKeyboardModifiers = quickMenuPrefs->quickMenuKeyboardModifiers;
-    if (shortcutKey == m_QuickMenuKeyboardKey &&
-            (shortcutModifiers & m_QuickMenuKeyboardModifiers) == m_QuickMenuKeyboardModifiers) {
+    if (shortcutKey != 0 && shortcutKey == m_QuickMenuKeyboardKey &&
+            shortcutModifiers == m_QuickMenuKeyboardModifiers) {
         if (event->state == SDL_PRESSED) {
             setCaptureActive(false);
             raiseAllKeys();

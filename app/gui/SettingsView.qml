@@ -1924,7 +1924,7 @@ Flickable {
                             focus: true
                             placeholderText: qsTr("Waiting for shortcut...")
                             Keys.onPressed: function(event) {
-                                var key = event.nativeVirtualKey > 0 ? event.nativeVirtualKey : event.key
+                                var key = event.key
                                 var mods = 0; var count = 1
                                 if (event.modifiers & Qt.ControlModifier) { mods |= 1; count++ }
                                 if (event.modifiers & Qt.AltModifier) { mods |= 2; count++ }
