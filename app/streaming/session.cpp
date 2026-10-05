@@ -666,7 +666,8 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
 {
     DualSenseAudioRenderer::instance().configure(m_Preferences->dualSenseAudioMode);
     DualSenseAudioRenderer::instance().setVolume(m_Preferences->dualSenseControllerVolume);
-    m_LaunchWarnings.append(tr("Extended Quick Menu: press Ctrl + Alt + Shift + A during streaming."));
+    m_LaunchWarnings.append(tr("Extended Quick Menu: press %1 during streaming.")
+                                .arg(m_Preferences->quickMenuKeyboardShortcutDescription()));
 }
 
 void Session::handleStreamQuickAction(const QString& action)
@@ -2792,14 +2793,20 @@ void Session::exec()
             break;
 #endif
         case SDL_CONTROLLERDEVICEADDED:
-        case SDL_CONTROLLERDEVICEREMOVED:
+        case SDL_CONTROLLERDEVICEREMOVED: {
+            // Look up the pad before handleControllerDeviceEvent() closes it.
+            bool removedDualSense = false;
             if (event.type == SDL_CONTROLLERDEVICEREMOVED &&
                     m_Preferences->micDevice == "__dualsense__" &&
                     m_MicCapture != nullptr) {
-                m_MicCapture->stop();
-                delete m_MicCapture;
-                m_MicCapture = nullptr;
-                m_MicCaptureAttempted = false;
+                SDL_GameController* removed = SDL_GameControllerFromInstanceID(event.cdevice.which);
+                if (removed != nullptr && SDL_GameControllerGetType(removed) == SDL_CONTROLLER_TYPE_PS5) {
+                    m_MicCapture->stop();
+                    delete m_MicCapture;
+                    m_MicCapture = nullptr;
+                    m_MicCaptureAttempted = false;
+                    removedDualSense = true;
+                }
             }
             m_InputHandler->handleControllerDeviceEvent(&event.cdevice);
             // DualSense transport classification happens while the controller-added
@@ -2809,7 +2816,17 @@ void Session::exec()
                     m_Preferences->micDevice == "__dualsense__") {
                 startMicrophoneCapture();
             }
+            else if (removedDualSense) {
+                for (int i = 0; i < SDL_NumJoysticks(); i++) {
+                    if (SDL_IsGameController(i) &&
+                            SDL_GameControllerTypeForIndex(i) == SDL_CONTROLLER_TYPE_PS5) {
+                        startMicrophoneCapture();
+                        break;
+                    }
+                }
+            }
             break;
+        }
         case SDL_JOYDEVICEADDED:
             m_InputHandler->handleJoystickArrivalEvent(&event.jdevice);
             break;

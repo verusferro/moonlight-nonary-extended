@@ -584,9 +584,16 @@ void DualSenseAudioRenderer::receive(uint16_t controllerNumber, uint16_t sequenc
         return;
     }
 
+    const int16_t sequenceDelta = m_ExpectedSequence >= 0 ?
+        static_cast<int16_t>(sequence - static_cast<uint16_t>(m_ExpectedSequence)) : 0;
+    if (sequenceDelta < 0) {
+        // Unsequenced delivery can reorder; a late packet is stale, not lost.
+        return;
+    }
+
     m_PacketsReceived++;
-    if (m_ExpectedSequence >= 0 && sequence != static_cast<uint16_t>(m_ExpectedSequence)) {
-        m_PacketsLost += static_cast<uint16_t>(sequence - m_ExpectedSequence);
+    if (sequenceDelta > 0) {
+        m_PacketsLost += static_cast<uint16_t>(sequenceDelta);
         SDL_LogWarn(SDL_LOG_CATEGORY_AUDIO,
                     "DualSense audio sequence gap: expected=%u received=%u lost=%llu",
                     static_cast<unsigned>(m_ExpectedSequence), sequence,

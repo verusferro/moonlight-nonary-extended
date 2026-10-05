@@ -36,6 +36,5 @@ private:
     Uint32 m_FrameSize;
     Uint32 m_FrameDurationMs;
     SDL_AudioSpec m_WantedSpec;
-    std::string m_StartupDeviceName;
     bool m_DualSenseHeadsetActive;
 };

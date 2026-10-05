@@ -44,12 +44,9 @@ bool SdlAudioRenderer::prepareForPlayback(const OPUS_MULTISTREAM_CONFIGURATION* 
                   opusConfig->channelCount *
                   getAudioBufferSampleSize();
 
-    // SDL's first enumerated device is not necessarily the Windows default
-    // endpoint. Open the system default explicitly instead of accidentally
-    // pinning the stream to an arbitrary virtual device (for example Steam
-    // Streaming Speakers).
-    m_StartupDeviceName.clear();
-
+    // Open the system default explicitly (nullptr) instead of accidentally
+    // pinning the stream to SDL's first enumerated device, which is not
+    // necessarily the Windows default (for example Steam Streaming Speakers).
     m_WantedSpec = want;
     if (!openAudioDevice(false)) {
         return false;
@@ -72,8 +69,7 @@ bool SdlAudioRenderer::prepareForPlayback(const OPUS_MULTISTREAM_CONFIGURATION* 
                 SDL_GetCurrentAudioDriver());
 
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                "Main stream audio pinned to startup device: %s",
-                m_StartupDeviceName.empty() ? "<system default>" : m_StartupDeviceName.c_str());
+                "Main stream audio opened on the system default device");
 
     return true;
 }
@@ -100,8 +96,7 @@ const char* SdlAudioRenderer::findDualSenseAudioDevice() const
 
 bool SdlAudioRenderer::openAudioDevice(bool useDualSenseHeadset)
 {
-    const char* deviceName = useDualSenseHeadset ? findDualSenseAudioDevice() :
-        (m_StartupDeviceName.empty() ? nullptr : m_StartupDeviceName.c_str());
+    const char* deviceName = useDualSenseHeadset ? findDualSenseAudioDevice() : nullptr;
     if (useDualSenseHeadset && deviceName == nullptr) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                     "DualSense headset connected, but its Windows audio endpoint was not found");
