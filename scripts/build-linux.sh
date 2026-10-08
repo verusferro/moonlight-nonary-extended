@@ -11,10 +11,9 @@ COMPAT_COMMIT=a53b6ad90ecd2d0ccfe01d5cfd2059793acf8c12
 STAGE="${STAGE:-$APP/build-linux/stage}"
 JOBS="${JOBS:-$(nproc)}"
 
-# 1. Patched SDL3 (shared, HIDAPI). XTEST off: libxtst-dev not installed; harmless for streaming.
+# 1. Patched SDL3 (shared, HIDAPI)
 cmake -S "$SDL3_SRC" -B "$SDL3_SRC/build-linux" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_HIDAPI=ON -DSDL_HIDAPI_JOYSTICK=ON -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF \
-  -DSDL_X11_XTEST=OFF
+  -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_HIDAPI=ON -DSDL_HIDAPI_JOYSTICK=ON -DSDL_TESTS=OFF -DSDL_EXAMPLES=OFF
 cmake --build "$SDL3_SRC/build-linux" -j"$JOBS"
 
 # 2. sdl2-compat at pinned commit, linked against the build above
