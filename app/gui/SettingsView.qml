@@ -2177,11 +2177,10 @@ Flickable {
                         implicitHeight: 120
                         focus: true
                         Keys.onPressed: function(event) {
-                            if (event.nativeVirtualKey > 0) {
-                                StreamingPreferences.setControllerKbmAction(keyboardCaptureDialog.sourceId, "key:" + event.nativeVirtualKey)
-                                keyboardCaptureDialog.close()
-                                event.accepted = true
-                            }
+                            StreamingPreferences.assignControllerKbmKeyboardKey(keyboardCaptureDialog.sourceId, event.key,
+                                                                                event.nativeVirtualKey || 0, event.nativeScanCode || 0)
+                            keyboardCaptureDialog.close()
+                            event.accepted = true
                         }
                         Label {
                             anchors.centerIn: parent

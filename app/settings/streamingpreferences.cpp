@@ -848,6 +848,48 @@ void StreamingPreferences::setControllerKbmAction(const QString& source, const Q
 }
 
 
+#ifndef Q_OS_WIN
+// Windows VK <-> Qt key. First match wins for Qt->VK; trailing rows are inverse-only (left/right variants).
+static const struct { int vk; int qt; } kWindowsVkQtKeys[] = {
+    { 0x10, Qt::Key_Shift }, { 0x11, Qt::Key_Control }, { 0x12, Qt::Key_Alt }, { 0x5B, Qt::Key_Meta },
+    { 0x08, Qt::Key_Backspace }, { 0x2E, Qt::Key_Delete }, { 0x2D, Qt::Key_Insert }, { 0x09, Qt::Key_Tab },
+    { 0x0D, Qt::Key_Return }, { 0x0D, Qt::Key_Enter }, { 0x1B, Qt::Key_Escape }, { 0x20, Qt::Key_Space },
+    { 0x24, Qt::Key_Home }, { 0x23, Qt::Key_End }, { 0x21, Qt::Key_PageUp }, { 0x22, Qt::Key_PageDown },
+    { 0x25, Qt::Key_Left }, { 0x26, Qt::Key_Up }, { 0x27, Qt::Key_Right }, { 0x28, Qt::Key_Down },
+    { 0xBA, Qt::Key_Semicolon }, { 0xBB, Qt::Key_Equal }, { 0xBC, Qt::Key_Comma }, { 0xBD, Qt::Key_Minus },
+    { 0xBE, Qt::Key_Period }, { 0xBF, Qt::Key_Slash }, { 0xC0, Qt::Key_QuoteLeft }, { 0xDB, Qt::Key_BracketLeft },
+    { 0xDC, Qt::Key_Backslash }, { 0xDD, Qt::Key_BracketRight }, { 0xDE, Qt::Key_Apostrophe },
+    { 0xA0, Qt::Key_Shift }, { 0xA1, Qt::Key_Shift }, { 0xA2, Qt::Key_Control }, { 0xA3, Qt::Key_Control },
+    { 0xA4, Qt::Key_Alt }, { 0xA5, Qt::Key_Alt }, { 0x5C, Qt::Key_Meta },
+};
+
+// Returns 0 when the key has no Windows VK equivalent.
+static int qtKeyToWindowsVk(int qtKey)
+{
+    if ((qtKey >= Qt::Key_A && qtKey <= Qt::Key_Z) || (qtKey >= Qt::Key_0 && qtKey <= Qt::Key_9))
+        return qtKey; // VK_A..VK_Z and VK_0..VK_9 equal their ASCII codes
+    if (qtKey >= Qt::Key_F1 && qtKey <= Qt::Key_F24)
+        return 0x70 + (qtKey - Qt::Key_F1);
+    for (const auto& e : kWindowsVkQtKeys) {
+        if (e.qt == qtKey) return e.vk;
+    }
+    return 0;
+}
+
+// Returns 0 when the VK has no Qt equivalent.
+static int windowsVkToQtKey(int vk)
+{
+    if ((vk >= 0x41 && vk <= 0x5A) || (vk >= 0x30 && vk <= 0x39))
+        return vk;
+    if (vk >= 0x70 && vk <= 0x87)
+        return Qt::Key_F1 + (vk - 0x70);
+    for (const auto& e : kWindowsVkQtKeys) {
+        if (e.vk == vk) return e.qt;
+    }
+    return 0;
+}
+#endif
+
 QString StreamingPreferences::controllerKbmActionDescription(const QString& action) const
 {
     if (action.isEmpty()) return tr("Unassigned");
@@ -869,7 +911,8 @@ QString StreamingPreferences::controllerKbmActionDescription(const QString& acti
                 name = QString::fromWCharArray(buffer);
             }
 #else
-            name = QKeySequence(key).toString(QKeySequence::NativeText);
+            const int qtKey = windowsVkToQtKey(key);
+            if (qtKey) name = QKeySequence(qtKey).toString(QKeySequence::NativeText);
 #endif
             return tr("Keyboard: %1").arg(name.isEmpty() ? QString::number(key) : name);
         }
@@ -984,7 +1027,8 @@ void StreamingPreferences::assignControllerKbmKeyboardKey(const QString& source,
         }
     }
 #else
-    if (virtualKey <= 0) virtualKey = qtKey;
+    // Qt's nativeVirtualKey is an XKB keysym here, not a Windows VK; translate from the Qt key.
+    virtualKey = qtKeyToWindowsVk(qtKey);
 #endif
     if (virtualKey > 0)
         setControllerKbmAction(source, QStringLiteral("key:%1").arg(virtualKey));

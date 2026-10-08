@@ -20,6 +20,8 @@
 #include <SDL_log.h>
 #ifdef _WIN32
 #include <windows.h>
+#elif defined(__linux__)
+#include <dlfcn.h>
 #endif
 
 #define MIC_PACKET_TYPE 0x3003
@@ -385,26 +387,44 @@ void MicCapture::bluetoothDualSenseLoop()
 
 bool MicCapture::registerBluetoothMicrophoneCallback()
 {
-#ifdef _WIN32
     static constexpr const char* CallbackProperty =
         "Artemis.DualSenseBluetoothMicrophone.Callback";
     static constexpr const char* UserdataProperty =
         "Artemis.DualSenseBluetoothMicrophone.Userdata";
+#ifdef _WIN32
     HMODULE sdl3 = GetModuleHandleW(L"SDL3.dll");
     if (sdl3 == nullptr) {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[mic-bt] SDL3.dll is not loaded");
         return false;
     }
+    auto lookup = [sdl3](const char* name) -> void* {
+        return reinterpret_cast<void*>(GetProcAddress(sdl3, name));
+    };
+#elif defined(__linux__)
+    // NOLOAD: only attach to the SDL3 that sdl2-compat already loaded. The extra
+    // reference is dropped after lookup; sdl2-compat keeps the library mapped.
+    void* sdl3 = dlopen("libSDL3.so.0", RTLD_NOW | RTLD_NOLOAD);
+    if (sdl3 == nullptr) {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "[mic-bt] libSDL3.so.0 is not loaded");
+        return false;
+    }
+    auto lookup = [sdl3](const char* name) -> void* { return dlsym(sdl3, name); };
+#else
+    return false;
+#endif
     auto getGlobalProperties = reinterpret_cast<GetGlobalProperties>(
-        GetProcAddress(sdl3, "SDL_GetGlobalProperties"));
+        lookup("SDL_GetGlobalProperties"));
     m_SetPointerProperty = reinterpret_cast<SetPointerProperty>(
-        GetProcAddress(sdl3, "SDL_SetPointerProperty"));
+        lookup("SDL_SetPointerProperty"));
     m_ClearProperty = reinterpret_cast<ClearProperty>(
-        GetProcAddress(sdl3, "SDL_ClearProperty"));
+        lookup("SDL_ClearProperty"));
     m_LockProperties = reinterpret_cast<LockProperties>(
-        GetProcAddress(sdl3, "SDL_LockProperties"));
+        lookup("SDL_LockProperties"));
     m_UnlockProperties = reinterpret_cast<UnlockProperties>(
-        GetProcAddress(sdl3, "SDL_UnlockProperties"));
+        lookup("SDL_UnlockProperties"));
+#ifdef __linux__
+    dlclose(sdl3);
+#endif
     if (getGlobalProperties == nullptr || m_SetPointerProperty == nullptr ||
             m_ClearProperty == nullptr || m_LockProperties == nullptr ||
             m_UnlockProperties == nullptr) {
@@ -425,9 +445,6 @@ bool MicCapture::registerBluetoothMicrophoneCallback()
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                 "[mic-bt] Registered on SDL's existing DualSense HID reader");
     return true;
-#else
-    return false;
-#endif
 }
 
 void MicCapture::setMuted(bool muted)
