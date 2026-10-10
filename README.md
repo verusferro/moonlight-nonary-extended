@@ -100,11 +100,9 @@ Always start the client with this launcher, not `moonlight.bin`. The launcher ma
 
 ### 1. Install the tools
 
-- [Visual Studio 2022](https://visualstudio.microsoft.com/) with "Desktop development with C++"
+- [Visual Studio 2022](https://visualstudio.microsoft.com/) (or its Build Tools) with "Desktop development with C++"
 - [Qt 6](https://www.qt.io/download-qt-installer) for MSVC 2022 64-bit (tested with 6.11.1). Add its `bin` folder (with `qmake.exe`) to `PATH`.
 - [Git](https://git-scm.com/), [CMake](https://cmake.org/) and [7-Zip](https://www.7-zip.org/) on `PATH`
-
-If you installed only the Visual Studio Build Tools, set `VCVARSALL` to the full path of its `vcvarsall.bat`.
 
 ### 2. Build
 

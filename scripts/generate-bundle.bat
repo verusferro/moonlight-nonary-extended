@@ -73,7 +73,7 @@ if not defined VSWHERE set VSWHERE="%SOURCE_ROOT%\scripts\vswhere.exe"
 if defined VCVARSALL (
     call "%VCVARSALL%" x86
 ) else (
-    for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -property installationPath`) do (
+    for /f "usebackq delims=" %%i in (`%VSWHERE% -latest -products * -property installationPath`) do (
         call "%%i\VC\Auxiliary\Build\vcvarsall.bat" x86
     )
 )
