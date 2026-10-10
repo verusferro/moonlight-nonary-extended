@@ -119,6 +119,21 @@ void OverlayManager::updateOverlayText(OverlayType type, const char* text)
     m_WorkReady.notify_one();
 }
 
+void OverlayManager::showNotification(const char* text, std::chrono::milliseconds duration)
+{
+    {
+        std::lock_guard<std::mutex> lock(m_StateLock);
+        auto& overlay = m_Overlays[OverlayNotification];
+        SDL_utf8strlcpy(overlay.text, text, sizeof(overlay.text));
+        overlay.enabled = true;
+        ++overlay.revision;
+        overlay.dirty = true;
+        overlay.queued = std::chrono::steady_clock::now();
+        m_NotificationExpiry = overlay.queued + duration;
+    }
+    m_WorkReady.notify_one();
+}
+
 int OverlayManager::getOverlayMaxTextLength()
 {
     return sizeof(m_Overlays[0].text);
@@ -186,12 +201,22 @@ void OverlayManager::run()
         Clock::time_point queued;
         {
             std::unique_lock<std::mutex> lock(m_StateLock);
-            m_WorkReady.wait(lock, [&] {
-                if (m_Stopping) return true;
-                if (!m_HaveRenderer) return false;
-                for (const auto& overlay : m_Overlays) if (overlay.dirty) return true;
-                return false;
-            });
+            for (;;) {
+                if (m_NotificationExpiry != Clock::time_point{} && Clock::now() >= m_NotificationExpiry) {
+                    m_NotificationExpiry = {};
+                    auto& toast = m_Overlays[OverlayNotification];
+                    toast.enabled = false;
+                    toast.text[0] = 0;
+                    ++toast.revision;
+                    toast.dirty = true;
+                    toast.queued = Clock::now();
+                }
+                bool ready = m_Stopping;
+                if (!ready && m_HaveRenderer) for (const auto& overlay : m_Overlays) ready = ready || overlay.dirty;
+                if (ready) break;
+                if (m_NotificationExpiry != Clock::time_point{}) m_WorkReady.wait_until(lock, m_NotificationExpiry);
+                else m_WorkReady.wait(lock);
+            }
             if (m_Stopping) return;
             // One coalesced request per overlay; rotate to avoid starving status
             // messages if diagnostic text changes faster than it can be drawn.

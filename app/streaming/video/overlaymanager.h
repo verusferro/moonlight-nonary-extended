@@ -62,6 +62,10 @@ public:
     void updateOverlayText(OverlayType type, const char* text);
     int getOverlayMaxTextLength();
     void setOverlayState(OverlayType type, bool enabled);
+    // Shows a toast and hides it after `duration`. Expiry runs on the overlay
+    // worker: Session::exec() never pumps the Qt event loop on every platform,
+    // so QTimer-based hiding could leave the toast on screen forever.
+    void showNotification(const char* text, std::chrono::milliseconds duration);
     void setStatusMessage(StatusSource source, const std::string& text);
     SDL_Color getOverlayColor(OverlayType type);
     int getOverlayFontSize(OverlayType type);
@@ -96,6 +100,7 @@ private:
     // wait for rasterization, texture upload or renderer destruction.
     std::mutex m_RendererLock;
     bool m_HaveRenderer = false, m_Stopping = false, m_TtfInitialized = false;
+    std::chrono::steady_clock::time_point m_NotificationExpiry; // epoch = none; guarded by m_StateLock
     std::thread m_Worker;
 };
 

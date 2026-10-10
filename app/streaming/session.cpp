@@ -50,7 +50,6 @@
 #include <QGuiApplication>
 #include <QCursor>
 #include <QScreen>
-#include <QTimer>
 #include <QProcess>
 #include <QSettings>
 #include <QThread>
@@ -61,6 +60,8 @@
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QQuickOpenGLUtils>
 #endif
+
+using namespace std::chrono_literals;
 
 #define CONN_TEST_SERVER "qt.conntest.moonlight-stream.org"
 
@@ -682,26 +683,16 @@ void Session::handleStreamQuickAction(const QString& action)
             m_OverlayManager.setOverlayState(Overlay::OverlayDebug, enabled);
         }
         else if (action == QStringLiteral("uploadClipboard")) {
-            try { NvHTTP(m_Computer).sendClipboard(QGuiApplication::clipboard()->text());
-                m_OverlayManager.updateOverlayText(Overlay::OverlayNotification, "Clipboard uploaded"); }
-            catch (...) { m_OverlayManager.updateOverlayText(Overlay::OverlayNotification, "Clipboard upload failed"); }
-            m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
-            const uint32_t generation = ++m_MicrophoneOverlayGeneration;
-            QTimer::singleShot(1600, this, [this, generation] {
-                if (generation == m_MicrophoneOverlayGeneration)
-                    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
-            });
+            const char* result = "Clipboard uploaded";
+            try { NvHTTP(m_Computer).sendClipboard(QGuiApplication::clipboard()->text()); }
+            catch (...) { result = "Clipboard upload failed"; }
+            m_OverlayManager.showNotification(result, 1600ms);
         }
         else if (action == QStringLiteral("fetchClipboard")) {
-            try { QGuiApplication::clipboard()->setText(NvHTTP(m_Computer).getClipboard());
-                m_OverlayManager.updateOverlayText(Overlay::OverlayNotification, "Clipboard fetched"); }
-            catch (...) { m_OverlayManager.updateOverlayText(Overlay::OverlayNotification, "Clipboard fetch failed"); }
-            m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
-            const uint32_t generation = ++m_MicrophoneOverlayGeneration;
-            QTimer::singleShot(1600, this, [this, generation] {
-                if (generation == m_MicrophoneOverlayGeneration)
-                    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
-            });
+            const char* result = "Clipboard fetched";
+            try { QGuiApplication::clipboard()->setText(NvHTTP(m_Computer).getClipboard()); }
+            catch (...) { result = "Clipboard fetch failed"; }
+            m_OverlayManager.showNotification(result, 1600ms);
         }
         else if (action == QStringLiteral("microphone")) {
             delete m_MicCapture; m_MicCapture = nullptr; m_MicCaptureAttempted = false;
@@ -2033,63 +2024,28 @@ bool Session::startConnectionAsync()
 
 void Session::notifyMicrophoneMute(bool muted)
 {
-    const uint32_t generation = ++m_MicrophoneOverlayGeneration;
-    m_OverlayManager.updateOverlayText(Overlay::OverlayNotification,
-                                       muted ? "Microphone muted" : "Microphone unmuted");
-    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
-
-    // Keep the existing in-stream status overlay brief. The QObject context
-    // automatically cancels this callback if the session is destroyed.
-    QTimer::singleShot(1600, this, [this, generation] {
-        if (generation == m_MicrophoneOverlayGeneration) {
-            m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
-        }
-    });
+    m_OverlayManager.showNotification(muted ? "Microphone muted" : "Microphone unmuted", 1600ms);
 }
 
 void Session::notifyControllerKbmGyro(bool enabled)
 {
-    const uint32_t generation = ++m_MicrophoneOverlayGeneration;
-    m_OverlayManager.updateOverlayText(Overlay::OverlayNotification,
-                                       enabled ? "Gyro mouse enabled" : "Gyro mouse disabled");
-    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
-    QTimer::singleShot(1600, this, [this, generation] {
-        if (generation == m_MicrophoneOverlayGeneration)
-            m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
-    });
+    m_OverlayManager.showNotification(enabled ? "Gyro mouse enabled" : "Gyro mouse disabled", 1600ms);
 }
 
 void Session::notifyGyroStick(bool enabled)
 {
-    const uint32_t generation = ++m_MicrophoneOverlayGeneration;
-    m_OverlayManager.updateOverlayText(Overlay::OverlayNotification,
-                                       enabled ? "Gyro stick enabled" : "Gyro stick disabled");
-    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
-    QTimer::singleShot(1600, this, [this, generation] {
-        if (generation == m_MicrophoneOverlayGeneration) m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
-    });
+    m_OverlayManager.showNotification(enabled ? "Gyro stick enabled" : "Gyro stick disabled", 1600ms);
 }
 
 void Session::notifyControllerEmulationToggle(bool xbox)
 {
-    const uint32_t generation = ++m_MicrophoneOverlayGeneration;
-    m_OverlayManager.updateOverlayText(Overlay::OverlayNotification,
-                                       xbox ? "Controller emulation: Xbox 360" : "Controller emulation: default");
-    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
-    QTimer::singleShot(1600, this, [this, generation] {
-        if (generation == m_MicrophoneOverlayGeneration) m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
-    });
+    m_OverlayManager.showNotification(xbox ? "Controller emulation: Xbox 360" : "Controller emulation: default", 1600ms);
 }
 
 void Session::notifyControllerBatteryLow(int percentage)
 {
-    const uint32_t generation = ++m_MicrophoneOverlayGeneration;
     const QByteArray text = QStringLiteral("Controller battery low — %1%").arg(percentage).toUtf8();
-    m_OverlayManager.updateOverlayText(Overlay::OverlayNotification, text.constData());
-    m_OverlayManager.setOverlayState(Overlay::OverlayNotification, true);
-    QTimer::singleShot(2200, this, [this, generation] {
-        if (generation == m_MicrophoneOverlayGeneration) m_OverlayManager.setOverlayState(Overlay::OverlayNotification, false);
-    });
+    m_OverlayManager.showNotification(text.constData(), 2200ms);
 }
 
 void Session::startMicrophoneCapture()
