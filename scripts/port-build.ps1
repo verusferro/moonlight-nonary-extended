@@ -36,7 +36,7 @@ function Invoke-CopyPackageLicenses([string]$RepoRoot, [string]$DeployDir) {
         @('LICENSE', 'Moonlight\LICENSE'),
         @('moonlight-common-c\moonlight-common-c\LICENSE.txt', 'moonlight-common-c\LICENSE.txt'),
         @('qmdnsengine\qmdnsengine\LICENSE.txt', 'qmdnsengine\LICENSE.txt'),
-        @('h264bitstream\h264bitstream\LICENSE', 'h264bitstream\LICENSE'),
+        @('h264bitstream\LICENSE', 'h264bitstream\LICENSE'),
         @('app\SDL_GameControllerDB\LICENSE', 'SDL_GameControllerDB\LICENSE'),
         @('moonlight-common-c\moonlight-common-c\enet\LICENSE', 'enet\LICENSE'),
         @('moonlight-common-c\moonlight-common-c\nanors\LICENSE', 'nanors\LICENSE'),
