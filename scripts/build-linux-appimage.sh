@@ -38,7 +38,7 @@ if [ ! -e "$P/lib/libavcodec.so" ]; then
      -Dwith_x11=yes -Dwith_glx=no -Dwith_wayland=no -Ddisable_drm=true >/dev/null && ninja -C build install >/dev/null)
 
   clone https://github.com/haasn/libplacebo 92b5ac6db79f4d680eb656692f7bf51e9606f42a libplacebo
-  (cd "$SRC/libplacebo" && git apply "$APP"/app/deploy/linux/appimage/*.patch &&
+  (cd "$SRC/libplacebo" && git reset -q --hard && rm -rf build && git apply "$APP"/app/deploy/linux/appimage/*.patch &&
    meson setup build --prefix="$P" --libdir=lib -Dvulkan=enabled -Dopengl=disabled -Ddemos=false >/dev/null &&
    ninja -C build install >/dev/null)
 
