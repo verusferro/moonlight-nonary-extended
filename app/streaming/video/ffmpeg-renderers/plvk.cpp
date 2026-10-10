@@ -1017,7 +1017,7 @@ bool PlVkRenderer::createSwapchain(int depth)
     vkSwapchainParams.present_mode = m_VkPresentMode;
     vkSwapchainParams.swapchain_depth = depth;
 #if PL_API_VER >= 338
-    vkSwapchainParams.disable_10bit_sdr = true; // Some drivers don't dither 10-bit SDR output correctly
+    vkSwapchainParams.disable_10bit_sdr = false; // ponytail: 10-bit SDR swapchain like Windows D3D11; some drivers don't dither it and may band, gate per driver if reported
 #endif
 
     {
