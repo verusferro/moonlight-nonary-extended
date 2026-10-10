@@ -8,23 +8,29 @@ It is based on [Nonary's moonlight-qt](https://github.com/Nonary/moonlight-qt) (
 
 - DualSense speaker, headset jack and HD haptics from the host, over USB and Bluetooth
 - DualSense Bluetooth microphone sent to the host
-- Choose the controller type the host emulates (Automatic, Xbox 360, DualShock 4, DualSense). Hold Start + Select for 2 s to switch one pad to Xbox 360 and back.
+- Choose the controller type the host emulates (Automatic, Xbox 360, DualShock 4, DualSense). Press Share/Back + L3 + R3 on a pad to switch it to Xbox 360 emulation and back. Change or turn off this button combo in Settings → Quick Menu shortcuts → Toggle Xbox 360 emulation.
 - Map controller buttons to keyboard keys and mouse, use the gyro as a stick, and set shortcut chords
 - Extended Quick Menu, clipboard sync and stream notifications
 - Bitrate (10 s average and peak) in the stream statistics
 - On Windows, it installs next to normal Moonlight and has its own settings. It does not change or remove your existing Moonlight.
 
-Controller audio, microphone and emulation choice need a host with Apollo Extended controller support. With other hosts, normal streaming works.
+Controller audio, microphone and emulation choice need a host with Apollo Extended controller support, for example [Vibepollo DualSense](https://github.com/verusferro/vibepollo-dualsense). With other hosts, normal streaming works.
 
 The DualSense features use a patched SDL3 (`sdl-patches/`). The build scripts download SDL 3.4.12 and apply the patches for you.
 
-## Linux
+## Download
 
-### Download
+Get the latest version from the [Releases page](https://github.com/verusferro/moonlight-nonary-extended/releases):
 
-The Releases page has a Linux AppImage (`Moonlight_Nonary_Extended-<version>-x86_64.AppImage`) with the patched SDL3, Qt and FFmpeg inside. Make it executable and run it, no build needed. It was built on Ubuntu 24.04, so it needs glibc 2.39 or newer (Ubuntu 24.04+, Fedora 40+, Arch/CachyOS). GPU drivers, Vulkan and Wayland come from your system. To build it yourself, run `scripts/build-linux.sh`, then `scripts/build-linux-appimage.sh` (needs `linuxdeploy` and `linuxdeploy-plugin-qt` in `PATH`).
+| File | For |
+|---|---|
+| `MoonlightSetup-<version>.exe` | Windows installer |
+| `MoonlightPortable-x64-<version>.zip` | Windows, portable (no install) |
+| `Moonlight_Nonary_Extended-<version>-x86_64.AppImage` | Linux. Run `chmod +x` on it, then start it. |
 
-### Build
+The AppImage contains the patched SDL3, Qt and FFmpeg. It needs glibc 2.39 or newer (Ubuntu 24.04+, Fedora 40+, Arch, CachyOS). GPU drivers, Vulkan and Wayland come from your system. On Linux, also do [DualSense access](#3-give-your-user-access-to-the-dualsense).
+
+## Build on Linux
 
 Build on the computer where you will use the client. Builds from a different distribution do not run, because FFmpeg and Qt library versions differ.
 
@@ -39,6 +45,7 @@ sudo apt install build-essential git cmake ninja-build \
   qt6-base-dev qt6-declarative-dev qt6-svg-dev qt6-wayland \
   qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
   qml6-module-qtquick-templates qml6-module-qtquick-window qml6-module-qtqml-workerscript \
+  qml6-module-qtquick-dialogs \
   libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libplacebo-dev libvulkan-dev \
   libva-dev libvdpau-dev libdrm-dev libgbm-dev libegl-dev libopus-dev libssl-dev \
   libsdl2-dev libsdl2-ttf-dev libpulse-dev libasound2-dev libpipewire-0.3-dev \
@@ -109,7 +116,7 @@ This client has its own settings, so you must pair with your host again. To copy
 cd ~/.config && mkdir -p "Moonlight Nonary Extended" && cp "Moonlight Game Streaming Project/Moonlight.conf" "Moonlight Nonary Extended/Moonlight Nonary Extended.conf"
 ```
 
-## Windows
+## Build on Windows
 
 ### 1. Install the tools
 
