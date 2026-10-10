@@ -9,7 +9,7 @@ Subject: [PATCH 3/4] Add stable DualSense Bluetooth microphone transport
  1 file changed, 59 insertions(+), 3 deletions(-)
 
 diff --git a/src/joystick/hidapi/SDL_hidapi_ps5.c b/src/joystick/hidapi/SDL_hidapi_ps5.c
-index b67ef13..592a487 100644
+index b67ef1392..592a4874e 100644
 --- a/src/joystick/hidapi/SDL_hidapi_ps5.c
 +++ b/src/joystick/hidapi/SDL_hidapi_ps5.c
 @@ -249,6 +249,7 @@ typedef struct

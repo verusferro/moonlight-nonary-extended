@@ -5,10 +5,10 @@ set -euo pipefail
 
 APP="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$APP/build-linux"
-SDL3_SRC="$OUT/SDL"
-SDL3_TAG=release-3.4.12
+SDL3_TAG=release-3.4.18
+SDL3_SRC="$OUT/SDL-$SDL3_TAG"
 COMPAT_SRC="$OUT/sdl2-compat"
-COMPAT_COMMIT=a53b6ad90ecd2d0ccfe01d5cfd2059793acf8c12
+COMPAT_TAG=release-2.32.74
 STAGE="${STAGE:-$OUT/stage}"
 JOBS="${JOBS:-$(nproc)}"
 
@@ -40,7 +40,7 @@ cmake --build "$SDL3_SRC/build" -j"$JOBS"
 
 # 2. sdl2-compat at pinned commit, linked against the build above
 [ -d "$COMPAT_SRC/.git" ] || git clone -q https://github.com/libsdl-org/sdl2-compat "$COMPAT_SRC"
-git -C "$COMPAT_SRC" checkout -q "$COMPAT_COMMIT"
+git -C "$COMPAT_SRC" checkout -q "$COMPAT_TAG" 2>/dev/null || { git -C "$COMPAT_SRC" fetch -q --tags origin; git -C "$COMPAT_SRC" checkout -q "$COMPAT_TAG"; }
 cmake -S "$COMPAT_SRC" -B "$COMPAT_SRC/build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DSDL3_DIR="$SDL3_SRC/build" -DSDL2COMPAT_TESTS=OFF -DSDL2COMPAT_INSTALL=OFF \
   -DCMAKE_BUILD_RPATH="$SDL3_SRC/build"

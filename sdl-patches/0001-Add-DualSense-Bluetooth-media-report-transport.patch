@@ -9,7 +9,7 @@ Subject: [PATCH 1/4] Add DualSense Bluetooth media report transport
  1 file changed, 39 insertions(+)
 
 diff --git a/src/joystick/hidapi/SDL_hidapi_ps5.c b/src/joystick/hidapi/SDL_hidapi_ps5.c
-index bc5d4d5..73b0c41 100644
+index bc5d4d53f..73b0c41c7 100644
 --- a/src/joystick/hidapi/SDL_hidapi_ps5.c
 +++ b/src/joystick/hidapi/SDL_hidapi_ps5.c
 @@ -1069,6 +1069,7 @@ static bool HIDAPI_DriverPS5_SetJoystickLED(SDL_HIDAPI_Device *device, SDL_Joyst

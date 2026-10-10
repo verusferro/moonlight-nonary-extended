@@ -4,7 +4,8 @@
 $ErrorActionPreference = 'Stop'
 
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Src = Join-Path $Repo 'build\SDL'
+$SdlTag = 'release-3.4.18'  # same SDL as moonlight-qt-deps v19 (setup-deps.ps1)
+$Src = Join-Path $Repo "build\SDL-$SdlTag"
 $Lib = Join-Path $Repo 'libs\windows\lib\x64'
 
 if (-not (Test-Path -LiteralPath $Lib)) { throw "missing $Lib. Run setup-deps.ps1 first." }
@@ -15,7 +16,7 @@ function Assert-Ok([string]$What) { if ($LASTEXITCODE) { throw "$What failed" } 
 if (-not (Test-Path -LiteralPath $Src)) {
     $tmp = "$Src.tmp"
     if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force }
-    git clone -q --depth 1 --branch release-3.4.12 https://github.com/libsdl-org/SDL $tmp; Assert-Ok 'git clone'
+    git clone -q --depth 1 --branch $SdlTag https://github.com/libsdl-org/SDL $tmp; Assert-Ok 'git clone'
     $patches = @(Get-ChildItem (Join-Path $Repo 'sdl-patches\*.patch') | Sort-Object Name | ForEach-Object { $_.FullName })
     git -C $tmp apply @patches; Assert-Ok 'git apply'
     Rename-Item -LiteralPath $tmp -NewName (Split-Path -Leaf $Src)
