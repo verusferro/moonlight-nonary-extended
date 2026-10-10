@@ -1,4 +1,4 @@
-Moonlight Nonary Extended 6.1.0-vrr18.1 (file/MSI 6.1.18.1)
+Moonlight Nonary Extended 6.1.0-vrr18.2 (file/MSI 6.1.18.2)
 Product identity: Moonlight Nonary Extended
 
 This resources/licenses tree is copied into the portable ZIP and the MSI
@@ -14,9 +14,9 @@ In-tree licenses (copied from the Nonary tree at pack time):
 - enet (common-c): MIT -> enet/LICENSE
 - nanors (common-c): MIT -> nanors/LICENSE
 
-Shipped DualSense SDL3.dll (not stock moonlight-qt-deps v8 SDL):
+Shipped DualSense SDL3.dll (not stock moonlight-qt-deps v19 SDL):
 - License: zlib -> SDL3/LICENSE.txt
-- Source: libsdl-org/SDL release-3.4.12 (f87239e71e42da91ca317a12eefb82cfbf3393eb)
+- Source: libsdl-org/SDL release-3.4.18 (829a65d7)
   plus the DualSense patches in sdl-patches/
 
 Qt 6.11.1:
@@ -25,24 +25,24 @@ Qt 6.11.1:
   Qt-GPL-exception-1.0, LicenseRef-Qt-Commercial
 - Source: https://github.com/qt/qtbase/tree/v6.11.1/LICENSES
 
-moonlight-qt-deps v8 (https://github.com/moonlight-stream/moonlight-qt-deps/tree/v8):
-- Tag tree: 2b08b5fe858c9057766f0e66daa1650c1aecc48b
+moonlight-qt-deps v19 (https://github.com/moonlight-stream/moonlight-qt-deps/tree/v19):
+- Tag tree: 79621271459ebb945343f58d7acd6ad24d402c38
 - The release zips are include/ and lib/ only (no LICENSE/COPYING/NOTICE files).
-  Notices here are fetched from the v8 submodule pins, not from the zips.
+  Notices here are fetched from the v19 submodule pins, not from the zips.
 
-v8 submodule pins and license files:
-- FFmpeg 239f2c733de417201d7ad3b3b8b0d9b63285b2b1
+v19 submodule pins and license files:
+- FFmpeg 946fcce0 (n9.0.2)
   LICENSE.md, COPYING.LGPLv2.1, COPYING.LGPLv3, COPYING.GPLv2, COPYING.GPLv3
-  v8 build-ffmpeg-windows.sh does not pass --enable-gpl (LGPL build).
-- openssl aae016bfd52fcad2bc9657c2c782cfdf73b1ed5f  LICENSE.txt (Apache-2.0)
-- opus ddbe48383984d56acd9e1ab6a090c54ca6b735a6  COPYING (BSD)
-- dav1d b546257f770768b2c88258c533da38b91a06f737  COPYING (BSD-2-Clause)
-- libplacebo 2d0979fb54e025e904c7372666fffbf5dae40f66  LICENSE (LGPL-2.1)
+  v19 build-ffmpeg-windows.sh does not pass --enable-gpl (LGPL build).
+- openssl c8bd5a57  LICENSE.txt (Apache-2.0)
+- opus 22244de5  COPYING (BSD)
+- dav1d 54706fc6  COPYING (BSD-2-Clause)
+- libplacebo 92b5ac6d  LICENSE (LGPL-2.1)
 - SDL_ttf a883e490e30fb44a5336ea3dcb990c6982c5216f  LICENSE.txt (zlib)
-- sdl2-compat a53b6ad90ecd2d0ccfe01d5cfd2059793acf8c12  LICENSE.txt (zlib)
+- sdl2-compat e4df8a55 (release-2.32.74)  LICENSE.txt (zlib)
 - discord-rpc 7bcf3b3fdd02d4d5072971ef1d5b4e6dd3a765dc (cgutman fork)  LICENSE (MIT)
 - Detours 9764cebcb1a75940e68fa83d6730ffaf0f669401  LICENSE.md (MIT)
-- SDL stock pin f87239e71e42da91ca317a12eefb82cfbf3393eb is not the shipped DLL;
+- SDL stock pin 829a65d7 (release-3.4.18) is not the shipped DLL;
   DualSense SDL3/LICENSE.txt is packaged instead.
 
 Donor DualSense client work: Taveszfito/moonlight-extended aee77e490f85e78b6d5bde68f3c3309fdd5063cc
