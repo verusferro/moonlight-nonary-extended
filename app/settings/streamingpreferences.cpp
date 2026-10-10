@@ -107,6 +107,7 @@
 #define SER_CONTROLLERKBMPRESETS "controllerkbmpresets"
 #define SER_CONTROLLERKBMACTIVEPRESET "controllerkbmactivepreset"
 #define SER_CONTROLLERKBMSHORTCUT "controllerkbmshortcut"
+#define SER_CONTROLLEREMULATIONSHORTCUT "controlleremulationshortcut"
 #define SER_CONTROLLERKBMGYROENABLED "controllerkbmgyroenabled"
 #define SER_CONTROLLERKBMGYROSENSITIVITY "controllerkbmgyrosensitivity"
 #define SER_CONTROLLERKBMGYROSHORTCUT "controllerkbmgyroshortcut"
@@ -300,6 +301,7 @@ void StreamingPreferences::reload()
     controllerKbmRightTriggerBehavior = settings.value(SER_CONTROLLERKBMRIGHTTRIGGERBEHAVIOR, controllerKbmTriggerBehavior).toString();
     controllerKbmRightTriggerRepeatRate = qBound(1, settings.value(SER_CONTROLLERKBMRIGHTTRIGGERREPEATRATE, controllerKbmTriggerRepeatRate).toInt(), 30);
     controllerKbmShortcut = settings.value(SER_CONTROLLERKBMSHORTCUT, QStringLiteral("4,5")).toString();
+    controllerEmulationShortcut = settings.value(SER_CONTROLLEREMULATIONSHORTCUT, QStringLiteral("4,7,8")).toString();
     controllerKbmGyroEnabled = settings.value(SER_CONTROLLERKBMGYROENABLED, false).toBool();
     controllerKbmGyroSensitivity = qBound(10, settings.value(SER_CONTROLLERKBMGYROSENSITIVITY, 100).toInt(), 500);
     controllerKbmGyroShortcut = settings.value(SER_CONTROLLERKBMGYROSHORTCUT, QStringLiteral("7,8")).toString();
@@ -586,6 +588,7 @@ void StreamingPreferences::save()
     settings.setValue(SER_CONTROLLERKBMRIGHTTRIGGERBEHAVIOR, controllerKbmRightTriggerBehavior);
     settings.setValue(SER_CONTROLLERKBMRIGHTTRIGGERREPEATRATE, controllerKbmRightTriggerRepeatRate);
     settings.setValue(SER_CONTROLLERKBMSHORTCUT, controllerKbmShortcut);
+    settings.setValue(SER_CONTROLLEREMULATIONSHORTCUT, controllerEmulationShortcut);
     settings.setValue(SER_CONTROLLERKBMGYROENABLED, controllerKbmGyroEnabled);
     settings.setValue(SER_CONTROLLERKBMGYROSENSITIVITY, controllerKbmGyroSensitivity);
     settings.setValue(SER_CONTROLLERKBMGYROSHORTCUT, controllerKbmGyroShortcut);
@@ -811,25 +814,25 @@ QString StreamingPreferences::microphoneMuteKeyboardShortcutDescription() const
     parts<<QKeySequence(microphoneMuteKeyboardKey).toString(QKeySequence::NativeText);return parts.join(" + ");
 }
 
-QString StreamingPreferences::quickMenuControllerShortcutDescription() const
+QString StreamingPreferences::controllerShortcutDescription(const QString& buttons) const
 {
     static const QHash<int, QString> names = {
         {0, QStringLiteral("A / Cross")}, {1, QStringLiteral("B / Circle")},
         {2, QStringLiteral("X / Square")}, {3, QStringLiteral("Y / Triangle")},
         {4, QStringLiteral("Share / Create")}, {5, QStringLiteral("Home / PS")},
-        {6, QStringLiteral("Start / Options")}, {9, QStringLiteral("LB")},
+        {6, QStringLiteral("Start / Options")}, {7, QStringLiteral("L3")}, {8, QStringLiteral("R3")}, {9, QStringLiteral("LB")},
         {10, QStringLiteral("RB")}, {15, QStringLiteral("Mute")},
         {16, QStringLiteral("Paddle 1")}, {17, QStringLiteral("Paddle 2")},
         {18, QStringLiteral("Paddle 3")}, {19, QStringLiteral("Paddle 4")},
         {20, QStringLiteral("Touchpad")}
     };
     QStringList parts;
-    for (const QString& value : controllerKbmShortcut.split(',', Qt::SkipEmptyParts)) {
+    for (const QString& value : buttons.split(',', Qt::SkipEmptyParts)) {
         bool ok = false;
         const int index = value.toInt(&ok);
         if (ok) parts << names.value(index, QString::number(index));
     }
-    return parts.join(QStringLiteral(" + "));
+    return parts.isEmpty() ? tr("Disabled") : parts.join(QStringLiteral(" + "));
 }
 
 void StreamingPreferences::setControllerKbmAction(const QString& source, const QString& action)

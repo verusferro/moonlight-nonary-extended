@@ -17,6 +17,7 @@ struct ChordMasks {
     uint32_t quickMenu = 0;
     uint32_t gyroToggle = 0;
     uint32_t gyroStick = 0;
+    uint32_t xboxToggle = 0;
     bool kbmMode = false;
     bool gyroHoldMode = false;
 };
@@ -27,6 +28,7 @@ enum class ChordAction : uint8_t {
     FireQuickMenu,
     FireGyroToggle,
     FireGyroStick,
+    FireXboxToggle,
 };
 
 struct ChordResult {
@@ -104,6 +106,10 @@ inline ChordResult chordOnButton(ChordPadState& pad, unsigned button, bool press
         return result;
     }
     if (!masks.kbmMode && tryFire(masks.gyroStick, 4, ChordAction::FireGyroStick)) {
+        result.down = pad.down;
+        return result;
+    }
+    if (!masks.kbmMode && tryFire(masks.xboxToggle, 8, ChordAction::FireXboxToggle)) {
         result.down = pad.down;
         return result;
     }

@@ -15,7 +15,7 @@ constexpr unsigned kLb = 9;
 constexpr unsigned kRb = 10;
 
 struct HostEvent {
-    enum Kind { ForwardPress, ForwardRelease, FireQuick, FireGyro, FireGyroStick, Suppress, ReleaseForwarded } kind;
+    enum Kind { ForwardPress, ForwardRelease, FireQuick, FireGyro, FireGyroStick, FireXbox, Suppress, ReleaseForwarded } kind;
     unsigned button = 0;
     uint32_t bits = 0;
 };
@@ -31,6 +31,7 @@ ChordMasks overlayMasks()
     masks.quickMenu = (1u << kCreate) | (1u << kPs);
     masks.gyroToggle = (1u << 7) | (1u << 8);
     masks.gyroStick = (1u << kCreate) | (1u << kTriangle);
+    masks.xboxToggle = (1u << kCreate) | (1u << 7) | (1u << 8);
     return masks;
 }
 
@@ -61,6 +62,12 @@ void feed(Pad& pad, unsigned button, bool pressed, const ChordMasks& masks)
             pad.log.push_back({HostEvent::ReleaseForwarded, 0, r.releaseBits});
         }
         pad.log.push_back({HostEvent::FireGyroStick, button, r.releaseBits});
+        break;
+    case ChordAction::FireXboxToggle:
+        if (r.releaseBits) {
+            pad.log.push_back({HostEvent::ReleaseForwarded, 0, r.releaseBits});
+        }
+        pad.log.push_back({HostEvent::FireXbox, button, r.releaseBits});
         break;
     }
 }
@@ -254,6 +261,58 @@ void paddleChordForwardsIncompleteThenFires()
     assert(pad.log[1].bits == (1u << 16));
 }
 
+void xboxToggleFiresOnceAndReleasesForwarded()
+{
+    Pad pad;
+    const ChordMasks masks = overlayMasks();
+    feed(pad, kCreate, true, masks);
+    feed(pad, 7, true, masks);
+    assert(!hasKind(pad, HostEvent::FireXbox));
+    feed(pad, 8, true, masks);
+    assert(countKind(pad, HostEvent::FireXbox) == 1);
+    assert(!hasKind(pad, HostEvent::FireQuick) && !hasKind(pad, HostEvent::FireGyroStick));
+    assert(pad.log[2].kind == HostEvent::ReleaseForwarded);
+    assert(pad.log[2].bits == ((1u << kCreate) | (1u << 7)));
+    feed(pad, 8, false, masks);
+    feed(pad, 7, false, masks);
+    feed(pad, kCreate, false, masks);
+    feed(pad, kCreate, true, masks);
+    feed(pad, 7, true, masks);
+    feed(pad, 8, true, masks);
+    assert(countKind(pad, HostEvent::FireXbox) == 2);
+}
+
+void xboxToggleIgnoresBuiltInCombosAndKbmMode()
+{
+    // Quit (Back+Start+LB+RB), stats (Back+LB+RB+X), Start+Back and L3+R3 alone must not toggle.
+    const unsigned combos[][4] = {{kCreate, kStart, kLb, kRb}, {kCreate, kLb, kRb, 2}, {kCreate, kStart, kStart, kStart}, {7, 8, 8, 8}};
+    for (const auto& combo : combos) {
+        Pad pad;
+        const ChordMasks masks = overlayMasks();
+        for (unsigned b : combo) feed(pad, b, true, masks);
+        assert(!hasKind(pad, HostEvent::FireXbox));
+    }
+    Pad pad;
+    ChordMasks masks = overlayMasks();
+    masks.kbmMode = true;
+    feed(pad, kCreate, true, masks);
+    feed(pad, 7, true, masks);
+    feed(pad, 8, true, masks);
+    assert(!hasKind(pad, HostEvent::FireXbox));
+}
+
+void emptyXboxMaskNeverFires()
+{
+    Pad pad;
+    ChordMasks masks = overlayMasks();
+    masks.xboxToggle = 0;
+    feed(pad, kCreate, true, masks);
+    feed(pad, 7, true, masks);
+    feed(pad, 8, true, masks);
+    assert(!hasKind(pad, HostEvent::FireXbox));
+    assert(countKind(pad, HostEvent::ForwardPress) == 3);
+}
+
 } // namespace
 
 int main()
@@ -269,6 +328,9 @@ int main()
     gyroStickOverlapsQuickMenuWithoutStealingFirstButton();
     quitChordButtonsStayOrdinaryAgainstOverlayMask();
     paddleChordForwardsIncompleteThenFires();
+    xboxToggleFiresOnceAndReleasesForwarded();
+    xboxToggleIgnoresBuiltInCombosAndKbmMode();
+    emptyXboxMaskNeverFires();
     std::puts("tst_chordtracker: all event sequences passed");
     return 0;
 }

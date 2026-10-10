@@ -19,9 +19,6 @@
 // How long the Start button must be pressed to toggle mouse emulation
 #define MOUSE_EMULATION_LONG_PRESS_TIME 750
 
-// How long Start+Select must be held to toggle Xbox 360 emulation for that pad
-#define EMULATION_TOGGLE_LONG_PRESS_TIME 2000
-
 // How long between polling the gamepad to send virtual mouse input
 #define MOUSE_EMULATION_POLLING_INTERVAL 50
 
@@ -351,6 +348,11 @@ void SdlInputHandler::syncControllerKbmSettings()
     m_GyroStickActivationMask=m_GyroStickPrecisionMask=0;m_GyroStickActivationTriggers[0]=m_GyroStickActivationTriggers[1]=m_GyroStickPrecisionTriggers[0]=m_GyroStickPrecisionTriggers[1]=false;
     auto parseGyroButtons=[](const QString& value,uint32_t& mask,bool triggers[2]){for(const QString& button:value.split(',',Qt::SkipEmptyParts)){bool ok=false;int index=button.toInt(&ok);if(!ok)continue;if(index>=0&&index<32)mask|=(1u<<index);else if(index==100)triggers[0]=true;else if(index==101)triggers[1]=true;}};
     parseGyroButtons(settings.value(QStringLiteral("gyrostickactivationbuttons"),QStringLiteral("100")).toString(),m_GyroStickActivationMask,m_GyroStickActivationTriggers);parseGyroButtons(settings.value(QStringLiteral("gyrostickprecisionbuttons"),QStringLiteral("101")).toString(),m_GyroStickPrecisionMask,m_GyroStickPrecisionTriggers);
+    m_XboxToggleShortcutMask = 0;
+    for (const QString& button : settings.value(QStringLiteral("controlleremulationshortcut"), QStringLiteral("4,7,8")).toString().split(',', Qt::SkipEmptyParts)) {
+        bool ok = false; const int index = button.toInt(&ok);
+        if (ok && index >= 0 && index < 32) m_XboxToggleShortcutMask |= (1u << index);
+    }
     m_ControllerKbmGyroShortcutMask = 0;
     const QString gyroShortcut = settings.value(QStringLiteral("controllerkbmgyroshortcut"), QStringLiteral("7,8")).toString();
     for (const QString& button : gyroShortcut.split(',', Qt::SkipEmptyParts)) {
@@ -510,6 +512,7 @@ ChordMasks SdlInputHandler::currentChordMasks() const
     masks.quickMenu = m_ControllerKbmShortcutMask;
     masks.gyroToggle = m_ControllerKbmGyroShortcutMask;
     masks.gyroStick = m_GyroStickShortcutMask;
+    masks.xboxToggle = m_XboxToggleShortcutMask;
     masks.kbmMode = m_ControllerKbmMode;
     masks.gyroHoldMode = m_ControllerKbmGyroHoldMode;
     return masks;
@@ -1007,6 +1010,21 @@ void SdlInputHandler::handleControllerButtonEvent(SDL_ControllerButtonEvent* eve
         return;
     }
 
+    if (chord.action == ChordAction::FireXboxToggle) {
+        applyChordRelease(state, chord.releaseBits);
+        state->xboxEmulationToggled = !state->xboxEmulationToggled;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "Xbox 360 emulation toggle for player %d: %s",
+                    state->index, state->xboxEmulationToggled ? "on" : "off");
+        // Remove, then re-announce: pads without an emulation request (Automatic
+        // on Nintendo/unknown types) are otherwise ignored as already allocated.
+        LiSendMultiControllerEvent(state->index, m_GamepadMask & ~(1 << state->index),
+                                   0, 0, 0, 0, 0, 0, 0);
+        sendControllerArrival(state);
+        Session::get()->notifyControllerEmulationToggle(state->xboxEmulationToggled);
+        return;
+    }
+
     if (m_ControllerKbmMode) {
         handleControllerKbmAction(state, controllerKbmSourceForButton(event->button), pressed);
         return;
@@ -1017,7 +1035,6 @@ void SdlInputHandler::handleControllerButtonEvent(SDL_ControllerButtonEvent* eve
 
         if (event->button == SDL_CONTROLLER_BUTTON_START) {
             state->lastStartDownTime = SDL_GetTicks();
-            state->emulationComboHeld = false;
         }
         else if (state->mouseEmulationTimer != 0) {
             if (event->button == SDL_CONTROLLER_BUTTON_A) {
@@ -1048,33 +1065,12 @@ void SdlInputHandler::handleControllerButtonEvent(SDL_ControllerButtonEvent* eve
                 LiSendHScrollEvent(-1);
             }
         }
-
-        if ((event->button == SDL_CONTROLLER_BUTTON_START || event->button == SDL_CONTROLLER_BUTTON_BACK) &&
-                (state->buttons & (PLAY_FLAG | BACK_FLAG)) == (PLAY_FLAG | BACK_FLAG)) {
-            state->emulationComboDownTime = SDL_GetTicks();
-            // Keep this Start hold from also toggling mouse emulation on release
-            state->emulationComboHeld = true;
-        }
     }
     else {
-        if ((event->button == SDL_CONTROLLER_BUTTON_START || event->button == SDL_CONTROLLER_BUTTON_BACK) &&
-                (state->buttons & (PLAY_FLAG | BACK_FLAG)) == (PLAY_FLAG | BACK_FLAG) &&
-                SDL_GetTicks() - state->emulationComboDownTime >= EMULATION_TOGGLE_LONG_PRESS_TIME) {
-            state->xboxEmulationToggled = !state->xboxEmulationToggled;
-            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                        "Xbox 360 emulation toggle for player %d: %s",
-                        state->index, state->xboxEmulationToggled ? "on" : "off");
-            // Remove, then re-announce: pads without an emulation request (Automatic
-            // on Nintendo/unknown types) are otherwise ignored as already allocated.
-            LiSendMultiControllerEvent(state->index, m_GamepadMask & ~(1 << state->index),
-                                       0, 0, 0, 0, 0, 0, 0);
-            sendControllerArrival(state);
-            Session::get()->notifyControllerEmulationToggle(state->xboxEmulationToggled);
-        }
         state->buttons &= ~k_ButtonMap[event->button];
 
         if (event->button == SDL_CONTROLLER_BUTTON_START) {
-            if (!state->emulationComboHeld && SDL_GetTicks() - state->lastStartDownTime > MOUSE_EMULATION_LONG_PRESS_TIME) {
+            if (SDL_GetTicks() - state->lastStartDownTime > MOUSE_EMULATION_LONG_PRESS_TIME) {
                 if (state->mouseEmulationTimer != 0) {
                     SDL_RemoveTimer(state->mouseEmulationTimer);
                     state->mouseEmulationTimer = 0;

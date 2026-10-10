@@ -50,6 +50,7 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
       m_GyroStickSmoothing(prefs.gyroStickSmoothing),
       m_GyroStickDeadzone(prefs.gyroStickDeadzone),
       m_GyroStickShortcutMask(0),
+      m_XboxToggleShortcutMask(0),
       m_GyroStickHoldMode(prefs.gyroStickHoldMode),
       m_GyroStickActivationMask(0),
       m_GyroStickActivationTriggers{false,false},

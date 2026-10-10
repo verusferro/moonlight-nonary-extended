@@ -28,8 +28,6 @@ struct GamepadState {
     SDL_TimerID kbmTimer;
     SdlInputHandler* kbmOwner;
     uint32_t lastStartDownTime;
-    uint32_t emulationComboDownTime;
-    bool emulationComboHeld;
     bool xboxEmulationToggled;
 
     bool clickpadButtonEmulationEnabled;
@@ -278,6 +276,7 @@ private:
     bool m_GyroStickSmoothing;
     int m_GyroStickDeadzone;
     uint32_t m_GyroStickShortcutMask;
+    uint32_t m_XboxToggleShortcutMask;
     bool m_GyroStickHoldMode;
     uint32_t m_GyroStickActivationMask;
     bool m_GyroStickActivationTriggers[2];

@@ -40,7 +40,7 @@ public:
     Q_INVOKABLE void requestControllerKbmConfiguration() { emit controllerKbmConfigurationRequested(); }
     Q_INVOKABLE QString quickMenuKeyboardShortcutDescription() const;
     Q_INVOKABLE QString microphoneMuteKeyboardShortcutDescription() const;
-    Q_INVOKABLE QString quickMenuControllerShortcutDescription() const;
+    Q_INVOKABLE QString controllerShortcutDescription(const QString& buttons) const;
     Q_INVOKABLE void commitControllerKbmSettings();
     Q_INVOKABLE void assignControllerKbmKeyboardKey(const QString& source, int qtKey,
                                                      int nativeVirtualKey, int nativeScanCode);
@@ -262,6 +262,7 @@ public:
     Q_PROPERTY(QStringList controllerKbmPresetNames MEMBER controllerKbmPresetNames NOTIFY controllerKbmPresetsChanged)
     Q_PROPERTY(int controllerKbmActivePresetIndex MEMBER controllerKbmActivePresetIndex NOTIFY controllerKbmPresetsChanged)
     Q_PROPERTY(QString controllerKbmShortcut MEMBER controllerKbmShortcut NOTIFY controllerKbmSettingsChanged)
+    Q_PROPERTY(QString controllerEmulationShortcut MEMBER controllerEmulationShortcut NOTIFY controllerKbmSettingsChanged)
     Q_PROPERTY(bool controllerKbmGyroEnabled MEMBER controllerKbmGyroEnabled NOTIFY controllerKbmSettingsChanged)
     Q_PROPERTY(int controllerKbmGyroSensitivity MEMBER controllerKbmGyroSensitivity NOTIFY controllerKbmSettingsChanged)
     Q_PROPERTY(QString controllerKbmGyroShortcut MEMBER controllerKbmGyroShortcut NOTIFY controllerKbmSettingsChanged)
@@ -383,6 +384,7 @@ public:
     QStringList controllerKbmPresetNames;
     int controllerKbmActivePresetIndex;
     QString controllerKbmShortcut;
+    QString controllerEmulationShortcut;
     bool controllerKbmGyroEnabled;
     int controllerKbmGyroSensitivity;
     QString controllerKbmGyroShortcut;

@@ -1897,9 +1897,18 @@ Flickable {
                     Label { text: qsTr("Controller"); Layout.preferredWidth: 170 }
                     Label {
                         Layout.fillWidth: true
-                        text: { StreamingPreferences.controllerKbmShortcut; return StreamingPreferences.quickMenuControllerShortcutDescription() }
+                        text: { StreamingPreferences.controllerKbmShortcut; return StreamingPreferences.controllerShortcutDescription(StreamingPreferences.controllerKbmShortcut) }
                     }
-                    Button { text: qsTr("Change"); onClicked: quickMenuControllerDialog.openForCurrent() }
+                    Button { text: qsTr("Change"); onClicked: quickMenuControllerDialog.open() }
+                }
+                RowLayout {
+                    width: parent.width
+                    Label { text: qsTr("Toggle Xbox 360 emulation"); Layout.preferredWidth: 170 }
+                    Label {
+                        Layout.fillWidth: true
+                        text: { StreamingPreferences.controllerEmulationShortcut; return StreamingPreferences.controllerShortcutDescription(StreamingPreferences.controllerEmulationShortcut) }
+                    }
+                    Button { text: qsTr("Change"); onClicked: controllerEmulationDialog.open() }
                 }
 
                 NavigableDialog {
@@ -1941,93 +1950,17 @@ Flickable {
                     }
                 }
 
-                NavigableDialog {
+                ControllerChordDialog {
                     id: quickMenuControllerDialog
                     title: qsTr("Quick Menu controller shortcut")
-                    standardButtons: Dialog.Ok | Dialog.Cancel
+                    preference: "controllerKbmShortcut"
+                }
 
-                    function openForCurrent() { open() }
-
-                    function applyCurrentShortcut() {
-                        var selected = {}
-                        var parts = StreamingPreferences.controllerKbmShortcut.split(",")
-                        for (var i = 0; i < parts.length; i++) {
-                            if (parts[i].length > 0)
-                                selected[parts[i]] = true
-                        }
-                        for (var j = 0; j < quickMenuControllerRepeater.count; j++) {
-                            var item = quickMenuControllerRepeater.itemAt(j)
-                            if (item)
-                                item.checked = selected[String(item.buttonIndex)] === true
-                        }
-                        updateOkEnabled()
-                    }
-
-                    function collectSelection() {
-                        var values = []
-                        for (var i = 0; i < quickMenuControllerRepeater.count; i++) {
-                            var item = quickMenuControllerRepeater.itemAt(i)
-                            if (item && item.checked)
-                                values.push(String(item.buttonIndex))
-                        }
-                        return values.join(",")
-                    }
-
-                    function updateOkEnabled() {
-                        var count = 0
-                        for (var i = 0; i < quickMenuControllerRepeater.count; i++) {
-                            var item = quickMenuControllerRepeater.itemAt(i)
-                            if (item && item.checked)
-                                count++
-                        }
-                        if (quickMenuControllerDialog.standardButton)
-                            quickMenuControllerDialog.standardButton(Dialog.Ok).enabled = count >= 2
-                    }
-
-                    onOpened: {
-                        if (quickMenuControllerRepeater.count > 0)
-                            applyCurrentShortcut()
-                        else
-                            Qt.callLater(applyCurrentShortcut)
-                    }
-
-                    onAccepted: {
-                        var selection = collectSelection()
-                        if (selection.split(",").filter(function(v){ return v.length > 0 }).length >= 2)
-                            StreamingPreferences.controllerKbmShortcut = selection
-                    }
-
-                    ColumnLayout {
-                        spacing: 10
-
-                        Label {
-                            text: qsTr("Select at least two controller buttons.")
-                            wrapMode: Text.Wrap
-                            Layout.maximumWidth: 480
-                        }
-
-                        GridLayout {
-                            columns: 3
-                            columnSpacing: 8
-                            rowSpacing: 4
-
-                            Repeater {
-                                id: quickMenuControllerRepeater
-                                model: [
-                                    {i:0,n:"A / Cross"},{i:1,n:"B / Circle"},{i:2,n:"X / Square"},{i:3,n:"Y / Triangle"},
-                                    {i:4,n:"Share / Create"},{i:5,n:"Home / PS"},{i:6,n:"Start / Options"},
-                                    {i:9,n:"LB"},{i:10,n:"RB"},{i:15,n:"Mute"},
-                                    {i:16,n:"Paddle 1"},{i:17,n:"Paddle 2"},{i:18,n:"Paddle 3"},{i:19,n:"Paddle 4"},
-                                    {i:20,n:"Touchpad"}
-                                ]
-                                CheckBox {
-                                    property int buttonIndex: modelData.i
-                                    text: modelData.n
-                                    onToggled: quickMenuControllerDialog.updateOkEnabled()
-                                }
-                            }
-                        }
-                    }
+                ControllerChordDialog {
+                    id: controllerEmulationDialog
+                    title: qsTr("Xbox 360 emulation toggle chord")
+                    preference: "controllerEmulationShortcut"
+                    allowEmpty: true
                 }
 
                 Column {
