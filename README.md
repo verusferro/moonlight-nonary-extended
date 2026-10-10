@@ -2,7 +2,7 @@
 
 A [Moonlight](https://moonlight-stream.org) game streaming client for Windows and Linux, with full DualSense support.
 
-It is based on [Nonary's moonlight-qt](https://github.com/Nonary/moonlight-qt) (`release/6.1.0-vrr18`: PyroWave, VRR pacing) and adds the DualSense and controller features from [Taveszfito/moonlight-extended](https://github.com/Taveszfito/moonlight-extended).
+It is based on [Nonary's moonlight-qt](https://github.com/Nonary/moonlight-qt) (`release/6.1.0-vrr18`: PyroWave, VRR pacing) and adds the DualSense and controller features from [Taveszfito/moonlight-extended](https://github.com/Taveszfito/moonlight-extended). It also carries fixes from upstream Moonlight 6.2.0: the CVE-2026-41210 security fix, full-range colour, frame-loss recovery fixes and the newer Windows libraries (FFmpeg 9.0.2).
 
 ## Features
 
@@ -16,7 +16,7 @@ It is based on [Nonary's moonlight-qt](https://github.com/Nonary/moonlight-qt) (
 
 Controller audio, microphone and emulation choice need a host with Apollo Extended controller support, for example [Vibepollo DualSense](https://github.com/verusferro/vibepollo-dualsense). With other hosts, normal streaming works.
 
-The DualSense features use a patched SDL3 (`sdl-patches/`). The build scripts download SDL 3.4.12 and apply the patches for you.
+The DualSense features use a patched SDL3 (`sdl-patches/`). The build scripts download SDL 3.4.18 and apply the patches for you.
 
 ## Download
 
@@ -28,7 +28,7 @@ Get the latest version from the [Releases page](https://github.com/verusferro/mo
 | `MoonlightPortable-x64-<version>.zip` | Windows, portable (no install) |
 | `Moonlight_Nonary_Extended-<version>-x86_64.AppImage` | Linux. Run `chmod +x` on it, then start it. |
 
-The AppImage contains the patched SDL3, Qt and FFmpeg. It needs glibc 2.39 or newer (Ubuntu 24.04+, Fedora 40+, Arch, CachyOS). GPU drivers, Vulkan and Wayland come from your system. On Linux, also do [DualSense access](#3-give-your-user-access-to-the-dualsense).
+The AppImage contains the patched SDL3, Qt and FFmpeg 9. It uses your system's VA-API library when it can, so hardware decoding works with current GPU drivers. It needs glibc 2.39 or newer (Ubuntu 24.04+, Fedora 40+, Arch, CachyOS). GPU drivers, Vulkan and Wayland come from your system. On Linux, also do [DualSense access](#3-give-your-user-access-to-the-dualsense).
 
 ## Build on Linux
 

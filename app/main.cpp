@@ -454,8 +454,8 @@ int main(int argc, char *argv[])
 
     // Isolated product identity. QSettings/AppData/cache paths are derived
     // from these; do not reuse stock Moonlight org/app names.
-    // Display VERSION_STR is 6.1.0-vrr18.1 (app.pro). File/MSI version is
-    // numeric 6.1.18.1 from app/version.txt (qmake VERSION).
+    // Display VERSION_STR is 6.1.0-vrr18.2 (app.pro). File/MSI version is
+    // numeric 6.1.18.2 from app/version.txt (qmake VERSION).
     QCoreApplication::setApplicationVersion(VERSION_STR);
     QCoreApplication::setOrganizationName(QStringLiteral("Moonlight Nonary Extended"));
     QCoreApplication::setOrganizationDomain(QStringLiteral("moonlight-nonary-extended.local"));
