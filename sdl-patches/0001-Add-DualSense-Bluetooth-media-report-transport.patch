@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Taveszfito <hgere89@gmail.com>
+Date: Fri, 14 Aug 2026 01:52:52 +0200
+Subject: [PATCH 1/4] Add DualSense Bluetooth media report transport
+
+(cherry picked from commit 0de9b9458de90de3f13e2f1a8dd2438b04c3087e)
+---
+ src/joystick/hidapi/SDL_hidapi_ps5.c | 39 ++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps5.c b/src/joystick/hidapi/SDL_hidapi_ps5.c
+index bc5d4d5..73b0c41 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps5.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps5.c
+@@ -1069,6 +1069,7 @@ static bool HIDAPI_DriverPS5_SetJoystickLED(SDL_HIDAPI_Device *device, SDL_Joyst
+ 
+ static bool HIDAPI_DriverPS5_InternalSendJoystickEffect(SDL_DriverPS5_Context *ctx, const void *effect, int size, bool application_usage)
+ {
++    static const Uint8 artemis_raw_magic[8] = { 'A', 'R', 'T', 'B', 'T', '0', '1', 0 };
+     Uint8 data[78];
+     int report_size, offset;
+     Uint8 *pending_data;
+@@ -1080,6 +1081,44 @@ static bool HIDAPI_DriverPS5_InternalSendJoystickEffect(SDL_DriverPS5_Context *c
+         return SDL_Unsupported();
+     }
+ 
++    // Artemis native DualSense Bluetooth audio/haptics transport. The payload
++    // following this private envelope is an already framed Sony BT HID report
++    // (including report ID, sequence and CRC). Keep it on SDL's own device and
++    // rumble queue so input and every output source share one ordered handle.
++    // USB deliberately never enters this extension.
++    if (ctx->device->is_bluetooth && size > (int)sizeof(artemis_raw_magic) &&
++        SDL_memcmp(effect, artemis_raw_magic, sizeof(artemis_raw_magic)) == 0) {
++        const Uint8 *raw_report = (const Uint8 *)effect + sizeof(artemis_raw_magic);
++        const int raw_size = size - (int)sizeof(artemis_raw_magic);
++        if (raw_size > 334 || (raw_report[0] != 0x31 && raw_report[0] != 0x32 &&
++                               raw_report[0] != 0x33 && raw_report[0] != 0x35)) {
++            return SDL_InvalidParamError("Artemis DualSense BT report");
++        }
++        // SDL's generic asynchronous rumble request owns only a 128-byte
++        // inline buffer, while Sony's native BT media reports are 142, 206 or
++        // 334 bytes. Write these reports through SDL's already-open HID
++        // device under its per-device lock. This retains a single controller
++        // handle and serializes against SDL input/effect traffic without the
++        // unrelated rumble-buffer size ceiling.
++        SDL_LockMutex(ctx->device->dev_lock);
++        const int written = SDL_hid_write(ctx->device->dev, raw_report, raw_size);
++        SDL_UnlockMutex(ctx->device->dev_lock);
++        // HidBth pads every logical report to the descriptor-wide physical
++        // OutputReportByteLength (547 bytes on DualSense). hid_write returns
++        // that physical length, so any result at least as large as the
++        // logical Sony report is a successful submission.
++        if (written < raw_size) {
++            SDL_LogError(SDL_LOG_CATEGORY_INPUT,
++                         "Artemis DualSense BT report 0x%02x short write: %d/%d (%s)",
++                         raw_report[0], written, raw_size, SDL_GetError());
++            return false;
++        }
++        SDL_LogVerbose(SDL_LOG_CATEGORY_INPUT,
++                       "Artemis DualSense BT report 0x%02x written: logical=%d physical=%d",
++                       raw_report[0], raw_size, written);
++        return true;
++    }
++
+     if (!ctx->enhanced_mode) {
+         if (application_usage) {
+             HIDAPI_DriverPS5_UpdateEnhancedModeOnApplicationUsage(ctx);

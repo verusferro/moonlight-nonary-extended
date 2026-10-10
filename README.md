@@ -1,114 +1,142 @@
-# Moonlight PC
+# Moonlight Nonary Extended
 
-[Moonlight PC](https://moonlight-stream.org) is an open source PC client for NVIDIA GameStream and [Sunshine](https://github.com/LizardByte/Sunshine).
+A [Moonlight](https://moonlight-stream.org) game streaming client for Windows and Linux, with full DualSense support.
 
-Moonlight also has mobile versions for [Android](https://github.com/moonlight-stream/moonlight-android) and [iOS](https://github.com/moonlight-stream/moonlight-ios).
-
-You can follow development on our [Discord server](https://moonlight-stream.org/discord) and help translate Moonlight into your language on [Weblate](https://hosted.weblate.org/projects/moonlight/moonlight-qt/).
-
- [![Build](https://img.shields.io/github/actions/workflow/status/moonlight-stream/moonlight-qt/build.yml?branch=master)](https://github.com/moonlight-stream/moonlight-qt/actions/workflows/build.yml?query=branch%3Amaster)
- [![Downloads](https://img.shields.io/github/downloads/moonlight-stream/moonlight-qt/total)](https://github.com/moonlight-stream/moonlight-qt/releases)
- [![Translation Status](https://hosted.weblate.org/widgets/moonlight/-/moonlight-qt/svg-badge.svg)](https://hosted.weblate.org/projects/moonlight/moonlight-qt/)
+It is based on [Nonary's moonlight-qt](https://github.com/Nonary/moonlight-qt) (`release/6.1.0-vrr18`: PyroWave, VRR pacing) and adds the DualSense and controller features from [Taveszfito/moonlight-extended](https://github.com/Taveszfito/moonlight-extended).
 
 ## Features
- - Hardware accelerated video decoding on Windows, Mac, and Linux
- - H.264, HEVC, and AV1 codec support (AV1 requires Sunshine and a supported host GPU)
- - YUV 4:4:4 support (Sunshine only)
- - HDR streaming support
- - 7.1 surround sound audio support
- - 10-point multitouch support (Sunshine only)
- - Gamepad support with force feedback and motion controls for up to 16 players
- - Support for both pointer capture (for games) and direct mouse control (for remote desktop)
- - Support for passing system-wide keyboard shortcuts like Alt+Tab to the host
- 
-## Downloads
-- [Windows, macOS, and Steam Link](https://github.com/moonlight-stream/moonlight-qt/releases)
-- [Snap (for Ubuntu-based Linux distros)](https://snapcraft.io/moonlight)
-- [Flatpak (for other Linux distros)](https://flathub.org/apps/details/com.moonlight_stream.Moonlight)
-- [AppImage](https://github.com/moonlight-stream/moonlight-qt/releases)
-- [Raspberry Pi 4 and 5](https://github.com/moonlight-stream/moonlight-docs/wiki/Installing-Moonlight-Qt-on-Raspberry-Pi-4)
-- [Generic ARM 32-bit and 64-bit Debian packages](https://github.com/moonlight-stream/moonlight-docs/wiki/Installing-Moonlight-Qt-on-ARM%E2%80%90based-Single-Board-Computers) (not for Raspberry Pi)
-- [Experimental RISC-V Debian packages](https://github.com/moonlight-stream/moonlight-docs/wiki/Installing-Moonlight-Qt-on-RISC%E2%80%90V-Single-Board-Computers)
-- [NVIDIA Jetson and Nintendo Switch (Ubuntu L4T)](https://github.com/moonlight-stream/moonlight-docs/wiki/Installing-Moonlight-Qt-on-Linux4Tegra-(L4T)-Ubuntu)
 
-### Nightly Builds
-- [Downloads](https://nightly.link/moonlight-stream/moonlight-qt/workflows/build/master)
+- DualSense speaker, headset jack and HD haptics from the host, over USB and Bluetooth
+- DualSense Bluetooth microphone sent to the host
+- Choose the controller type the host emulates (Automatic, Xbox 360, DualShock 4, DualSense). Hold Start + Select for 2 s to switch one pad to Xbox 360 and back.
+- Map controller buttons to keyboard keys and mouse, use the gyro as a stick, and set shortcut chords
+- Extended Quick Menu, clipboard sync and stream notifications
+- Bitrate (10 s average and peak) in the stream statistics
+- On Windows, it installs next to normal Moonlight and has its own settings. It does not change or remove your existing Moonlight.
 
-#### Special Thanks
+Controller audio, microphone and emulation choice need a host with Apollo Extended controller support. With other hosts, normal streaming works.
 
-[![Hosted By: Cloudsmith](https://img.shields.io/badge/OSS%20hosting%20by-cloudsmith-blue?logo=cloudsmith&style=flat-square)](https://cloudsmith.com)
+The DualSense features use a patched SDL3 (`sdl-patches/`). The build scripts download SDL 3.4.12 and apply the patches for you.
 
-Hosting for Moonlight's Debian and L4T package repositories is graciously provided for free by [Cloudsmith](https://cloudsmith.com).
+## Linux
 
-## Building
+Build on the computer where you will use the client. Builds from a different distribution do not run, because FFmpeg and Qt library versions differ.
 
-### Windows Build Requirements
-* Qt 6.7 SDK or later (earlier versions may work but are not officially supported)
-* [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/) (Community edition is fine)
-* Select **MSVC** option during Qt installation. MinGW is not supported.
-* [7-Zip](https://www.7-zip.org/) (only if building installers for non-development PCs)
-* Graphics Tools (only if running debug builds)
-  * Install "Graphics Tools" in the Optional Features page of the Windows Settings app.
-  * Alternatively, run `dism /online /add-capability /capabilityname:Tools.Graphics.DirectX~~~~0.0.1.0` and reboot.
+### 1. Install the build dependencies
 
-### macOS Build Requirements
-* Qt 6.7 SDK or later (earlier versions may work but are not officially supported)
-* Xcode 14 or later (earlier versions may work but are not officially supported)
-* [create-dmg](https://github.com/sindresorhus/create-dmg) (only if building DMGs for use on non-development Macs)
+Arch / CachyOS:
 
-### Linux/Unix Build Requirements
-* Qt 6 is recommended, but Qt 5.12 or later is also supported (replace `qmake6` with `qmake` when using Qt 5).
-* GCC or Clang
-* FFmpeg 4.0 or later
-* Install the required packages:
-  * Debian/Ubuntu:
-    * Base Requirements: `libegl1-mesa-dev libgl1-mesa-dev libopus-dev libsdl2-dev libsdl2-ttf-dev libssl-dev libavcodec-dev libavformat-dev libswscale-dev libva-dev libvdpau-dev libxkbcommon-dev wayland-protocols libdrm-dev`
-    * Qt 6 (Recommended): `qt6-base-dev qt6-declarative-dev libqt6svg6-dev qt6-wayland qml6-module-qtquick-controls qml6-module-qtquick-templates qml6-module-qtquick-layouts qml6-module-qtqml-workerscript qml6-module-qtquick-window qml6-module-qtquick`
-    * Qt 5: `qtbase5-dev qt5-qmake qtdeclarative5-dev qtquickcontrols2-5-dev qml-module-qtquick-controls2 qml-module-qtquick-layouts qml-module-qtquick-window2 qml-module-qtquick2 qtwayland5`
-  * RedHat/Fedora (RPM Fusion repo required):
-    * Base Requirements: `openssl-devel SDL2-devel SDL2_ttf-devel ffmpeg-devel libva-devel libvdpau-devel opus-devel pulseaudio-libs-devel alsa-lib-devel libdrm-devel`
-    * Qt 6 (Recommended): `qt6-qtsvg-devel qt6-qtdeclarative-devel`
-    * Qt 5: `qt5-qtsvg-devel qt5-qtquickcontrols2-devel`
-* Building the Vulkan renderer requires a `libplacebo-dev`/`libplacebo-devel` version of at least v7.349.0 and FFmpeg 6.1 or later.
+```bash
+sudo pacman -S --needed base-devel git cmake ninja \
+  qt6-base qt6-declarative qt6-svg qt6-wayland \
+  ffmpeg libva libvdpau libplacebo vulkan-headers vulkan-icd-loader \
+  opus sdl2-compat sdl2_ttf openssl libxkbcommon wayland wayland-protocols libdrm mesa \
+  libpulse pipewire libusb systemd-libs dbus \
+  libx11 libxext libxtst libxrandr libxcursor libxi libxfixes libxss
+```
 
-### Steam Link Build Requirements
-* [Steam Link SDK](https://github.com/ValveSoftware/steamlink-sdk) cloned on your build system
-* STEAMLINK_SDK_PATH environment variable set to the Steam Link SDK path
+Ubuntu 24.04 / Debian:
 
-**Steam Link Hardware Limitations**  
-Moonlight builds for Steam Link are subject to hardware limitations of the Steam Link device:
-* Maximum resolution: **1080p (1920x1080)**
-* Maximum framerate: **60 FPS**
-* Maximum video bitrate: **40 Mbps**
-* **HDR streaming is not supported** on the original hardware
+```bash
+sudo apt install build-essential git cmake ninja-build \
+  qt6-base-dev qt6-declarative-dev qt6-svg-dev qt6-wayland \
+  qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+  qml6-module-qtquick-templates qml6-module-qtquick-window qml6-module-qtqml-workerscript \
+  libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libplacebo-dev libvulkan-dev \
+  libva-dev libvdpau-dev libdrm-dev libgbm-dev libegl-dev libopus-dev libssl-dev \
+  libsdl2-dev libsdl2-ttf-dev libpulse-dev libasound2-dev libpipewire-0.3-dev \
+  libudev-dev libusb-1.0-0-dev libdbus-1-dev libwayland-dev libxkbcommon-dev \
+  libx11-dev libxext-dev libxtst-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev
+```
 
-### Docker containers
-If you want to use Docker for building, look at [this repo](https://github.com/cgutman/moonlight-packaging) containing canonical containers
-for different architectures, which handle building deps and extra linking for you.
+If the build stops because a library is missing, install the matching package and run the build again.
 
-### Build Setup Steps
-1. Install the latest Qt SDK (and optionally, the Qt Creator IDE) from https://www.qt.io/download
-    * You can install Qt via Homebrew on macOS, but you will need to use `brew install qt --with-debug` to be able to create debug builds of Moonlight.
-    * You may also use your Linux distro's package manager for the Qt SDK as long as the packages are Qt 5.12 or later.
-    * This step is not required for building on Steam Link, because the Steam Link SDK includes Qt 5.14.
-2. Download submodules and dependencies
-    * Run `git submodule update --init --recursive` from within `moonlight-qt/`.
-    * On Windows and macOS, you must also run `setup-deps.ps1` (Windows) or `setup-deps.py` (macOS).
-    * Perform these steps each time you pull new changes from the Git repository.
-3. Open the project in Qt Creator or build from qmake on the command line.
-    * To build a binary for use on non-development machines, use the scripts in the `scripts` folder.
-        * For Windows builds, use `scripts\build-arch.bat` and `scripts\generate-bundle.bat`. Execute these scripts from the root of the repository within a Qt command prompt. Ensure  7-Zip binary directory is on your `%PATH%`.
-        * For macOS builds, use `scripts/generate-dmg.sh`. Execute this script from the root of the repository and ensure Qt's `bin` folder is in your `$PATH`.
-        * For Steam Link builds, run `scripts/build-steamlink-app.sh` from the root of the repository.
-    * To build from the command line for development use on macOS or Linux, run `qmake6 moonlight-qt.pro` then `make debug` or `make release`.
-        * The final binary will be placed in `app/moonlight`.
-    * To create an embedded build for a single-purpose device, use `qmake6 "CONFIG+=embedded" moonlight-qt.pro` and build normally.
-        * This build will lack windowed mode, Discord/Help links, and other features that don't make sense on an embedded device.
-        * For platforms with poor GPU performance, add `"CONFIG+=gpuslow"` to prefer direct KMSDRM rendering over GL/Vulkan renderers. Direct KMSDRM rendering can use dedicated YUV/RGB conversion and scaling hardware rather than slower GPU shaders for these operations.
+### 2. Build
 
-## Contribute
-1. Fork us
-2. Write code
-3. Send Pull Requests
+```bash
+git clone --recursive https://github.com/verusferro/moonlight-nonary-extended.git
+cd moonlight-nonary-extended
+scripts/build-linux.sh
+```
 
-Check out our [website](https://moonlight-stream.org) for project links and information.
+The first build needs internet access to download SDL and sdl2-compat. To rebuild, run the script again.
+
+### 3. Give your user access to the DualSense
+
+Do this one time on each computer. It applies to all DualSense and DualSense Edge controllers, over USB and Bluetooth.
+
+Connect the controller. Then check if you already have access:
+
+```bash
+bash -c 'for d in /sys/class/hidraw/*; do grep -qiE "054C:0000(0CE6|0DF2)" "$d/device/uevent" 2>/dev/null || continue; n=/dev/${d##*/}; if [ -r "$n" ] && [ -w "$n" ]; then echo "$n: access OK"; else echo "$n: no access"; fi; done'
+```
+
+- `access OK`: go to step 4.
+- `no access`: add the udev rule below.
+- No output: the controller is not connected.
+
+```bash
+printf '%s\n' 'KERNEL=="hidraw*", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0ce6", TAG+="uaccess"' \
+  'KERNEL=="hidraw*", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0df2", TAG+="uaccess"' \
+  'KERNEL=="hidraw*", KERNELS=="*054C:0CE6*", TAG+="uaccess"' \
+  'KERNEL=="hidraw*", KERNELS=="*054C:0DF2*", TAG+="uaccess"' \
+  | sudo tee /etc/udev/rules.d/70-dualsense.rules
+sudo udevadm control --reload && sudo udevadm trigger
+```
+
+Disconnect the controller, connect it again, and do the check again.
+
+Without this access, buttons, sticks and rumble still work, but adaptive triggers, Bluetooth audio, haptics and the microphone do not.
+
+### 4. Run
+
+```bash
+build-linux/stage/moonlight
+```
+
+Always start the client with this launcher, not `moonlight.bin`. The launcher makes the client use the patched SDL3 instead of the system SDL.
+
+## Windows
+
+### 1. Install the tools
+
+- [Visual Studio 2022](https://visualstudio.microsoft.com/) with "Desktop development with C++"
+- [Qt 6](https://www.qt.io/download-qt-installer) for MSVC 2022 64-bit (tested with 6.11.1). Add its `bin` folder (with `qmake.exe`) to `PATH`.
+- [Git](https://git-scm.com/), [CMake](https://cmake.org/) and [7-Zip](https://www.7-zip.org/) on `PATH`
+
+If you installed only the Visual Studio Build Tools, set `VCVARSALL` to the full path of its `vcvarsall.bat`.
+
+### 2. Build
+
+In a Command Prompt:
+
+```bat
+git clone --recursive https://github.com/verusferro/moonlight-nonary-extended.git
+cd moonlight-nonary-extended
+powershell -ExecutionPolicy Bypass -File setup-deps.ps1
+powershell -ExecutionPolicy Bypass -File scripts\build-sdl-windows.ps1
+scripts\build-arch.bat Release x64
+scripts\generate-bundle.bat Release x64-only
+```
+
+`setup-deps.ps1` downloads the stock Moonlight libraries. `build-sdl-windows.ps1` then replaces their SDL3 with the patched SDL3. Run both again if you run `setup-deps.ps1` again.
+
+The results are in `build\`:
+
+| File | What it is |
+|---|---|
+| `installer-release\MoonlightSetup-<version>.exe` | Installer |
+| `build-x64-release\Moonlight.msi` | MSI package |
+| `installer-x64-release\MoonlightPortable-x64-<version>.zip` | Portable version |
+
+### Move settings from normal Moonlight
+
+This client has its own settings, so you must pair with your host again. To copy hosts, pairing and settings from normal Moonlight, export `HKCU\Software\Moonlight Game Streaming Project` with Registry Editor to a `.reg` file, then:
+
+```bat
+powershell -ExecutionPolicy Bypass -File scripts\import-settings.ps1 -Backup moonlight.reg -Installed
+```
+
+## License
+
+GPL-3.0, like Moonlight. See [LICENSE](LICENSE). Third-party license texts are in `packaging/licenses/`.

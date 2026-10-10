@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Taveszfito <hgere89@gmail.com>
+Date: Fri, 14 Aug 2026 17:08:02 +0200
+Subject: [PATCH 2/4] Fix DualSense Bluetooth combined media reports
+
+(cherry picked from commit 96a4628a01e3fdd54dc97bb57fdb5f9ab13e8fb8)
+---
+ src/joystick/hidapi/SDL_hidapi_ps5.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps5.c b/src/joystick/hidapi/SDL_hidapi_ps5.c
+index 73b0c41..b67ef13 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps5.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps5.c
+@@ -1090,13 +1090,14 @@ static bool HIDAPI_DriverPS5_InternalSendJoystickEffect(SDL_DriverPS5_Context *c
+         SDL_memcmp(effect, artemis_raw_magic, sizeof(artemis_raw_magic)) == 0) {
+         const Uint8 *raw_report = (const Uint8 *)effect + sizeof(artemis_raw_magic);
+         const int raw_size = size - (int)sizeof(artemis_raw_magic);
+-        if (raw_size > 334 || (raw_report[0] != 0x31 && raw_report[0] != 0x32 &&
+-                               raw_report[0] != 0x33 && raw_report[0] != 0x35)) {
++        if (raw_size > 398 || (raw_report[0] != 0x31 && raw_report[0] != 0x32 &&
++                               raw_report[0] != 0x33 && raw_report[0] != 0x35 &&
++                               raw_report[0] != 0x36)) {
+             return SDL_InvalidParamError("Artemis DualSense BT report");
+         }
+         // SDL's generic asynchronous rumble request owns only a 128-byte
+-        // inline buffer, while Sony's native BT media reports are 142, 206 or
+-        // 334 bytes. Write these reports through SDL's already-open HID
++        // inline buffer, while Sony's native BT media reports are up to 398
++        // bytes. Write these reports through SDL's already-open HID
+         // device under its per-device lock. This retains a single controller
+         // handle and serializes against SDL input/effect traffic without the
+         // unrelated rumble-buffer size ceiling.

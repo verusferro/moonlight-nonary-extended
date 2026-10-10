@@ -1,0 +1,131 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Taveszfito <hgere89@gmail.com>
+Date: Sat, 15 Aug 2026 17:52:55 +0200
+Subject: [PATCH 3/4] Add stable DualSense Bluetooth microphone transport
+
+(cherry picked from commit c1dd6604bc7607bcd46b79e1bc6f8d5a19c90124)
+---
+ src/joystick/hidapi/SDL_hidapi_ps5.c | 62 ++++++++++++++++++++++++++--
+ 1 file changed, 59 insertions(+), 3 deletions(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps5.c b/src/joystick/hidapi/SDL_hidapi_ps5.c
+index b67ef13..592a487 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps5.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps5.c
+@@ -249,6 +249,7 @@ typedef struct
+     Uint64 last_packet;
+     int player_index;
+     bool player_lights;
++    bool headset_connected;
+     bool enhanced_rumble;
+     Uint8 rumble_left;
+     Uint8 rumble_right;
+@@ -271,6 +272,13 @@ typedef struct
+ 
+ static bool HIDAPI_DriverPS5_InternalSendJoystickEffect(SDL_DriverPS5_Context *ctx, const void *effect, int size, bool application_usage);
+ 
++typedef void (SDLCALL *ArtemisDualSenseBluetoothMicrophoneCallback)(void *userdata,
++                                                                    const Uint8 *opus,
++                                                                    int length);
++
++#define ARTEMIS_BT_MIC_CALLBACK_PROPERTY "Artemis.DualSenseBluetoothMicrophone.Callback"
++#define ARTEMIS_BT_MIC_USERDATA_PROPERTY "Artemis.DualSenseBluetoothMicrophone.Userdata"
++
+ static void HIDAPI_DriverPS5_RegisterHints(SDL_HintCallback callback, void *userdata)
+ {
+     SDL_AddHintCallback(SDL_HINT_JOYSTICK_HIDAPI_PS5, callback, userdata);
+@@ -1070,12 +1078,21 @@ static bool HIDAPI_DriverPS5_SetJoystickLED(SDL_HIDAPI_Device *device, SDL_Joyst
+ static bool HIDAPI_DriverPS5_InternalSendJoystickEffect(SDL_DriverPS5_Context *ctx, const void *effect, int size, bool application_usage)
+ {
+     static const Uint8 artemis_raw_magic[8] = { 'A', 'R', 'T', 'B', 'T', '0', '1', 0 };
++    static const Uint8 artemis_jack_query[8] = { 'A', 'R', 'T', 'J', 'A', 'C', 'K', '?' };
+     Uint8 data[78];
+     int report_size, offset;
+     Uint8 *pending_data;
+     int *pending_size;
+     int maximum_size;
+ 
++    // Return the jack state captured by SDL's existing HID reader. Moonlight
++    // deliberately uses SendEffect as a private in-process query so no second
++    // handle or competing reader is opened for the controller.
++    if (size == (int)sizeof(artemis_jack_query) &&
++        SDL_memcmp(effect, artemis_jack_query, sizeof(artemis_jack_query)) == 0) {
++        return ctx->headset_connected;
++    }
++
+     if (!ctx->effects_supported) {
+         // We shouldn't be sending packets to this controller
+         return SDL_Unsupported();
+@@ -1090,13 +1107,13 @@ static bool HIDAPI_DriverPS5_InternalSendJoystickEffect(SDL_DriverPS5_Context *c
+         SDL_memcmp(effect, artemis_raw_magic, sizeof(artemis_raw_magic)) == 0) {
+         const Uint8 *raw_report = (const Uint8 *)effect + sizeof(artemis_raw_magic);
+         const int raw_size = size - (int)sizeof(artemis_raw_magic);
+-        if (raw_size > 398 || (raw_report[0] != 0x31 && raw_report[0] != 0x32 &&
++        if (raw_size > 547 || (raw_report[0] != 0x31 && raw_report[0] != 0x32 &&
+                                raw_report[0] != 0x33 && raw_report[0] != 0x35 &&
+-                               raw_report[0] != 0x36)) {
++                               raw_report[0] != 0x36 && raw_report[0] != 0x39)) {
+             return SDL_InvalidParamError("Artemis DualSense BT report");
+         }
+         // SDL's generic asynchronous rumble request owns only a 128-byte
+-        // inline buffer, while Sony's native BT media reports are up to 398
++        // inline buffer, while Sony's native BT media reports are up to 547
+         // bytes. Write these reports through SDL's already-open HID
+         // device under its per-device lock. This retains a single controller
+         // handle and serializes against SDL input/effect traffic without the
+@@ -1454,6 +1471,11 @@ static void HIDAPI_DriverPS5_HandleStatePacket(SDL_Joystick *joystick, SDL_hid_d
+     bool touchpad_down;
+     int touchpad_x, touchpad_y;
+ 
++    // This parsed field is transport-independent: USB passes the payload at
++    // report byte 1 and Bluetooth at report byte 2, but both end up here with
++    // ucConnectState at payload offset 53. Bit 0 is the physical jack state.
++    ctx->headset_connected = (packet->ucConnectState & 0x01) != 0;
++
+     if (ctx->report_touchpad) {
+         touchpad_down = ((packet->ucTouchpadCounter1 & 0x80) == 0);
+         touchpad_x = packet->rgucTouchpadData1[0] | (((int)packet->rgucTouchpadData1[1] & 0x0F) << 8);
+@@ -1640,9 +1662,43 @@ static bool HIDAPI_DriverPS5_UpdateDevice(SDL_HIDAPI_Device *device)
+     while ((size = SDL_hid_read_timeout(device->dev, data, sizeof(data), 0)) > 0) {
+         Uint64 timestamp = SDL_GetTicksNS();
+ 
++        if (data[0] == k_EPS5ReportIdBluetoothState) {
++            SDL_PropertiesID diagnostics = SDL_GetGlobalProperties();
++            Sint64 count = SDL_GetNumberProperty(diagnostics,
++                "Artemis.DualSenseBluetoothMicrophone.Raw31Count", 0);
++            SDL_SetNumberProperty(diagnostics,
++                "Artemis.DualSenseBluetoothMicrophone.Raw31Count", count + 1);
++            SDL_SetNumberProperty(diagnostics,
++                "Artemis.DualSenseBluetoothMicrophone.Last31Size", size);
++            SDL_SetNumberProperty(diagnostics,
++                "Artemis.DualSenseBluetoothMicrophone.Last31Tag", size > 1 ? data[1] : -1);
++        }
++
+ #ifdef DEBUG_PS5_PROTOCOL
+         HIDAPI_DumpPacket("PS5 packet: size = %d", data, size);
+ #endif
++        // Native DualSense Bluetooth microphone packet. hidapi has already
++        // removed the HIDP transaction byte, leaving report id 0x31, the mic
++        // tag in byte 1, a sequence byte, and the fixed 71-byte Opus payload.
++        // It is not a controller-state packet and has no normal state CRC, so
++        // divert it before validation/parsing while keeping this single HID
++        // handle as the sole reader.
++        if (size >= 74 && data[0] == k_EPS5ReportIdBluetoothState &&
++            (data[1] & 0x02) != 0) {
++            SDL_PropertiesID properties = SDL_GetGlobalProperties();
++            ArtemisDualSenseBluetoothMicrophoneCallback callback =
++                (ArtemisDualSenseBluetoothMicrophoneCallback)SDL_GetPointerProperty(
++                    properties, ARTEMIS_BT_MIC_CALLBACK_PROPERTY, NULL);
++            if (callback) {
++                void *userdata = SDL_GetPointerProperty(
++                    properties, ARTEMIS_BT_MIC_USERDATA_PROPERTY, NULL);
++                callback(userdata, data + 3, 71);
++            }
++            ++packet_count;
++            ctx->last_packet = now;
++            continue;
++        }
++
+         if (!HIDAPI_DriverPS5_IsPacketValid(ctx, data, size)) {
+             continue;
+         }

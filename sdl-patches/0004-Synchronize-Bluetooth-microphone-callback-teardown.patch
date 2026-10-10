@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: verusferro <99999109+verusferro@users.noreply.github.com>
+Date: Fri, 11 Sep 2026 12:12:40 +0300
+Subject: [PATCH 4/4] Synchronize Bluetooth microphone callback teardown
+
+Follow-up to the Taveszfito SDL Bluetooth microphone transport; preserve callback lifetime during capture shutdown.
+---
+ src/joystick/hidapi/SDL_hidapi_ps5.c | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/joystick/hidapi/SDL_hidapi_ps5.c b/src/joystick/hidapi/SDL_hidapi_ps5.c
+index 592a487..1f8186c 100644
+--- a/src/joystick/hidapi/SDL_hidapi_ps5.c
++++ b/src/joystick/hidapi/SDL_hidapi_ps5.c
+@@ -1686,13 +1686,19 @@ static bool HIDAPI_DriverPS5_UpdateDevice(SDL_HIDAPI_Device *device)
+         if (size >= 74 && data[0] == k_EPS5ReportIdBluetoothState &&
+             (data[1] & 0x02) != 0) {
+             SDL_PropertiesID properties = SDL_GetGlobalProperties();
+-            ArtemisDualSenseBluetoothMicrophoneCallback callback =
+-                (ArtemisDualSenseBluetoothMicrophoneCallback)SDL_GetPointerProperty(
+-                    properties, ARTEMIS_BT_MIC_CALLBACK_PROPERTY, NULL);
+-            if (callback) {
++            /* Fetch callback+userdata and invoke under one properties lock so
++             * unregister cannot clear them independently while this call is live.
++             */
++            if (SDL_LockProperties(properties)) {
++                ArtemisDualSenseBluetoothMicrophoneCallback callback =
++                    (ArtemisDualSenseBluetoothMicrophoneCallback)SDL_GetPointerProperty(
++                        properties, ARTEMIS_BT_MIC_CALLBACK_PROPERTY, NULL);
+                 void *userdata = SDL_GetPointerProperty(
+                     properties, ARTEMIS_BT_MIC_USERDATA_PROPERTY, NULL);
+-                callback(userdata, data + 3, 71);
++                if (callback) {
++                    callback(userdata, data + 3, 71);
++                }
++                SDL_UnlockProperties(properties);
+             }
+             ++packet_count;
+             ctx->last_packet = now;
