@@ -2,10 +2,10 @@
 $ErrorActionPreference = 'Stop'
 
 # Packaging helpers called by build-arch.bat.
-#   check-sdl <SDL3.dll>             refuse the stock moonlight-qt-deps v8 SDL3.dll
+#   check-sdl <SDL3.dll>             refuse the stock moonlight-qt-deps v19 SDL3.dll
 #   licenses  <repo> [deploy-dir]    copy license texts into <deploy>\resources\licenses
 
-$StockSdlSha256 = 'd0c5af11666af4a2a470246130aec6b69663202aaccc5817df9f63b696ff3636'
+$StockSdlSha256 = 'adb5717f9159c68f48ee7fed86d5d744eca0857b3a20a085794d193cf4335ae8'
 
 function Get-Sha256([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { throw "missing file: $Path" }
