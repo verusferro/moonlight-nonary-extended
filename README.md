@@ -30,6 +30,8 @@ Get the latest version from the [Releases page](https://github.com/verusferro/mo
 
 The AppImage contains the patched SDL3, Qt and FFmpeg 9. It uses your system's VA-API library when it can, so hardware decoding works with current GPU drivers. It needs glibc 2.39 or newer (Ubuntu 24.04+, Fedora 40+, Arch, CachyOS). GPU drivers, Vulkan and Wayland come from your system. On Linux, also do [DualSense access](#3-give-your-user-access-to-the-dualsense).
 
+To build the AppImage yourself (Ubuntu 24.04): install the Ubuntu packages from [Build on Linux](#1-install-the-build-dependencies) plus `libx11-xcb-dev libxcb-dri3-dev libshaderc-dev`, put [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy/releases) and [linuxdeploy-plugin-qt](https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases) in `PATH`, then run `scripts/build-linux.sh` and `scripts/build-linux-appimage.sh`. The second script builds FFmpeg 9.0.2, libplacebo, dav1d and libva into `build-linux/appimage-deps` first.
+
 ## Build on Linux
 
 Build on the computer where you will use the client. Builds from a different distribution do not run, because FFmpeg and Qt library versions differ.
