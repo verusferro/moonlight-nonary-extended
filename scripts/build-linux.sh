@@ -12,6 +12,21 @@ COMPAT_COMMIT=a53b6ad90ecd2d0ccfe01d5cfd2059793acf8c12
 STAGE="${STAGE:-$OUT/stage}"
 JOBS="${JOBS:-$(nproc)}"
 
+# 0. Arch / CachyOS: stop early if build dependencies are missing (the only copy of the list)
+if command -v pacman >/dev/null; then
+  missing="$(pacman -T gcc make pkgconf git cmake ninja \
+    qt6-base qt6-declarative qt6-svg qt6-wayland \
+    ffmpeg libva libvdpau libplacebo vulkan-headers vulkan-icd-loader \
+    opus sdl2-compat sdl2_ttf openssl libxkbcommon wayland wayland-protocols libdrm mesa \
+    libpulse pipewire libusb systemd-libs dbus \
+    libx11 libxext libxtst libxrandr libxcursor libxi libxfixes libxss | tr '\n' ' ')" || true
+  if [ -n "$missing" ]; then
+    echo "Missing build dependencies. Install them, then run this script again:" >&2
+    echo "  sudo pacman -S --needed $missing" >&2
+    exit 1
+  fi
+fi
+
 # 1. SDL3 with the DualSense patches (shared, HIDAPI)
 if [ ! -d "$SDL3_SRC" ]; then
   rm -rf "$SDL3_SRC.tmp"

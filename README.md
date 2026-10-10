@@ -20,20 +20,17 @@ The DualSense features use a patched SDL3 (`sdl-patches/`). The build scripts do
 
 ## Linux
 
+### Download
+
+The Releases page has a Linux AppImage (`Moonlight_Nonary_Extended-<version>-x86_64.AppImage`) with the patched SDL3, Qt and FFmpeg inside. Make it executable and run it, no build needed. It was built on Ubuntu 24.04, so it needs glibc 2.39 or newer (Ubuntu 24.04+, Fedora 40+, Arch/CachyOS). GPU drivers, Vulkan and Wayland come from your system. To build it yourself, run `scripts/build-linux.sh`, then `scripts/build-linux-appimage.sh` (needs `linuxdeploy` and `linuxdeploy-plugin-qt` in `PATH`).
+
+### Build
+
 Build on the computer where you will use the client. Builds from a different distribution do not run, because FFmpeg and Qt library versions differ.
 
 ### 1. Install the build dependencies
 
-Arch / CachyOS:
-
-```bash
-sudo pacman -S --needed base-devel git cmake ninja \
-  qt6-base qt6-declarative qt6-svg qt6-wayland \
-  ffmpeg libva libvdpau libplacebo vulkan-headers vulkan-icd-loader \
-  opus sdl2-compat sdl2_ttf openssl libxkbcommon wayland wayland-protocols libdrm mesa \
-  libpulse pipewire libusb systemd-libs dbus \
-  libx11 libxext libxtst libxrandr libxcursor libxi libxfixes libxss
-```
+Arch / CachyOS: nothing to install first. `scripts/build-linux.sh` checks the packages and, if some are missing, prints the `sudo pacman -S --needed ...` command to run.
 
 Ubuntu 24.04 / Debian:
 
@@ -86,6 +83,8 @@ sudo udevadm control --reload && sudo udevadm trigger
 
 Disconnect the controller, connect it again, and do the check again.
 
+If you have Steam installed, you can skip this step: its `/usr/lib/udev/rules.d/60-steam-input.rules` already gives your user access.
+
 Without this access, buttons, sticks and rumble still work, but adaptive triggers, Bluetooth audio, haptics and the microphone do not.
 
 ### 4. Run
@@ -95,6 +94,20 @@ build-linux/stage/moonlight
 ```
 
 Always start the client with this launcher, not `moonlight.bin`. The launcher makes the client use the patched SDL3 instead of the system SDL.
+
+To add it to your start menu (optional, only for your user):
+
+```bash
+scripts/install-linux-desktop.sh
+```
+
+### Move settings from normal Moonlight
+
+This client has its own settings, so you must pair with your host again. To copy hosts, pairing and settings (same file format) from normal Moonlight, close both and run:
+
+```bash
+cd ~/.config && mkdir -p "Moonlight Nonary Extended" && cp "Moonlight Game Streaming Project/Moonlight.conf" "Moonlight Nonary Extended/Moonlight Nonary Extended.conf"
+```
 
 ## Windows
 
